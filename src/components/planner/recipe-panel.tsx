@@ -182,6 +182,9 @@ function PanelRecipeList({
     return map;
   }, [recipeUsage]);
 
+  // TanStack Virtual returns functions the React Compiler can't memoize
+  // safely; the compiler isn't enabled here, so this notice has no effect.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const rowVirtualizer = useVirtualizer({
     count: shown.length,
     getScrollElement: () => scrollRef.current,

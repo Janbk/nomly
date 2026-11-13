@@ -560,23 +560,33 @@ export function BulkReparseDialog({
     }
   }, []);
 
+  // Reset local state whenever the dialog opens or closes. Done during render
+  // (not in the effect below) so the dialog never paints a stale frame.
+  const [prevOpen, setPrevOpen] = React.useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setView("open");
+      setMutedRecipes(new Set());
+      setMutedLines(new Set());
+    } else {
+      setEntries([]);
+      setStates([]);
+      setSummary(null);
+      setMutedList([]);
+    }
+  }
+
   // Scan once each time the dialog opens; abort the in-flight scan on close.
   React.useEffect(() => {
     if (open && !loadedRef.current) {
       loadedRef.current = true;
-      setView("open");
-      setMutedRecipes(new Set());
-      setMutedLines(new Set());
       void runScan();
       void loadMuted();
     }
     if (!open) {
       loadedRef.current = false;
       scanAbortRef.current?.abort();
-      setEntries([]);
-      setStates([]);
-      setSummary(null);
-      setMutedList([]);
     }
   }, [open, runScan, loadMuted]);
 
@@ -608,7 +618,6 @@ export function BulkReparseDialog({
           ),
         }))
         .filter((g) => g.indices.length > 0),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [recipeGroups, mutedRecipes, mutedLines, entries],
   );
 

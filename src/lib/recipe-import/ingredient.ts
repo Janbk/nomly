@@ -127,13 +127,6 @@ const TO_TASTE_PHRASES = [
   "to taste",
 ];
 
-type RangeResult = {
-  quantity: number;
-  /** When the input was a range, the original expression (e.g. "1-2") for
-   * inclusion in the notes. Null otherwise. */
-  rangeExpression: string | null;
-};
-
 const EMOJI_LEAD_RE =
   /^(?:[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F000}-\u{1F2FF}\u{1F600}-\u{1F64F}]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF])\s*/u;
 

@@ -25,7 +25,13 @@ export function UserListClient({ initialUsers }: { initialUsers: UserItem[] }) {
   const [confirmId, setConfirmId] = React.useState<number | null>(null);
   const [busyId, setBusyId] = React.useState<number | null>(null);
 
-  React.useEffect(() => setUsers(initialUsers), [initialUsers]);
+  // Re-sync when the server view re-renders with a fresh list (adjusting state
+  // during render rather than in an effect avoids a stale extra render).
+  const [prevInitialUsers, setPrevInitialUsers] = React.useState(initialUsers);
+  if (initialUsers !== prevInitialUsers) {
+    setPrevInitialUsers(initialUsers);
+    setUsers(initialUsers);
+  }
 
   async function remove(id: number) {
     setBusyId(id);

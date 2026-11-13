@@ -534,7 +534,7 @@ function segmentRange(
   {
     const segs = conjunctionSplit(source, all, from, to, baseDepth, opts);
     if (segs.length > 1) {
-      return segs.map((s, idx) => {
+      return segs.map((s) => {
         const seg = makeIngredient(source, all, s.from, s.to, baseDepth, {
           rawText: s.rawText,
           forceOptional: optional,

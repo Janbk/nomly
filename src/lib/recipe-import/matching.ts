@@ -45,7 +45,6 @@
  *     {@link perTokenBonus}.
  */
 
-import { canonicalizeMatchToken, normalizeForMatch } from "./ingredient.ts";
 import { lex, type Lexeme } from "./ast/lexer.ts";
 import { leavesToCandidateTokens } from "./ast/candidate-tokens.ts";
 

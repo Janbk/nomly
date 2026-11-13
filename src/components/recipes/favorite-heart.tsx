@@ -26,7 +26,11 @@ export function FavoriteHeart({
   const [saving, setSaving] = React.useState(false);
 
   // Keep in sync if the server view re-renders with a different value.
-  React.useEffect(() => setFavorite(initial), [initial]);
+  const [prevInitial, setPrevInitial] = React.useState(initial);
+  if (initial !== prevInitial) {
+    setPrevInitial(initial);
+    setFavorite(initial);
+  }
 
   async function toggle(e: React.MouseEvent) {
     e.preventDefault();

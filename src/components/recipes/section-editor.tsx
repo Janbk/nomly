@@ -205,18 +205,6 @@ export function SectionEditor({
     setFocusIngredientUid(fresh.uid);
   }
 
-  /**
-   * Find the row index of the primary that owns the row at `i`. Returns `i`
-   * itself when the row is already a primary. Maintains the invariant that
-   * alternatives always sit directly after their primary (which the
-   * server-side write path also assumes).
-   */
-  function findPrimaryIndex(i: number): number {
-    let j = i;
-    while (j > 0 && section.ingredients[j].isAlternative) j -= 1;
-    return j;
-  }
-
   /** Index of the LAST row in the alternative group rooted at `primaryIdx`. */
   function lastInGroup(primaryIdx: number): number {
     let j = primaryIdx;
