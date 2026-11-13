@@ -37,6 +37,7 @@ import {
 import type { PlannerRecipe } from "@/lib/recipes/types";
 import type { PlannerSettings } from "@/lib/settings/planner";
 import type { EventsByDate } from "@/lib/ical/events";
+import type { RemindersByDate } from "@/lib/reminders/types";
 import { useIsMobile } from "@/lib/use-is-mobile";
 import { DayCell } from "./day-cell";
 import { RangeNavButton } from "./range-nav-button";
@@ -68,6 +69,9 @@ type Props = {
   recipeUsage: Array<{ recipeId: number } & RecipeUsageStats>;
   allTags: string[];
   calendarEvents: EventsByDate;
+  /** Recipe reminders due on each visible day (server-derived; refreshed
+   *  with the rest of the page after every mutation). */
+  reminders: RemindersByDate;
 };
 
 export function PlannerView({
@@ -79,6 +83,7 @@ export function PlannerView({
   recipeUsage,
   allTags,
   calendarEvents,
+  reminders,
 }: Props) {
   const router = useRouter();
   // The full recipe catalog (for drag previews and optimistic meal creation)
@@ -774,6 +779,7 @@ export function PlannerView({
                 isToday={d === today}
                 meals={mealsByDate.get(d) ?? []}
                 events={calendarEvents[d] ?? []}
+                reminders={reminders[d] ?? []}
                 onEditMeal={(meal) => setEditing(meal)}
                 onReorderUp={(id) => handleReorder(id, "up")}
                 onReorderDown={(id) => handleReorder(id, "down")}

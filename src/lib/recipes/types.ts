@@ -114,6 +114,17 @@ export type AliasWarning = {
   created: boolean;
 };
 
+/** An advance reminder as entered on the recipe form. */
+export type RecipeReminderInput = {
+  /** 0 = the meal day itself, n = n days before it. */
+  daysBefore: number;
+  /** Local hour (0–23) the reminder is due. */
+  hour: number;
+  text: string;
+};
+
+export type RecipeReminderView = RecipeReminderInput & { id: number };
+
 export type RecipeInput = {
   title: string;
   description: string | null;
@@ -125,6 +136,10 @@ export type RecipeInput = {
   photoPath: string | null;
   tags: string[];
   sections: RecipeSectionInput[];
+  /** Advance reminders. Optional: omitted on update leaves the stored
+   *  reminders untouched (bulk re-parse and older API clients don't send
+   *  them); omitted on create means none. An empty array clears them. */
+  reminders?: RecipeReminderInput[];
   /** Optional. Per-name defaults applied when the save inserts a new
    *  ingredient row. */
   newIngredientDefaults?: NewIngredientDefaults[];
@@ -289,6 +304,8 @@ export type RecipeView = {
   cookTimeMin: number | null;
   tags: string[];
   sections: RecipeSectionView[];
+  /** Advance reminders, in display order. */
+  reminders: RecipeReminderView[];
   /** Derived from non-optional ingredients' dietary_class. `null` = unknown. */
   isVegan: boolean | null;
   isVegetarian: boolean | null;

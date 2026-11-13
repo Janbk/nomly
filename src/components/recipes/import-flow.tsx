@@ -57,6 +57,7 @@ function importedToDraft(
     // Source keywords/categories are noisy and don't match our curated tag
     // set — start with no tags and let the user pick from app-defined ones.
     tags: [],
+    reminders: [],
     sections: imported.sections.map((s) => ({
       uid: crypto.randomUUID(),
       title: s.title ?? "",

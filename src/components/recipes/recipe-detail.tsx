@@ -27,6 +27,7 @@ import {
   UpcomingUsesButton,
   UpcomingUsesProvider,
 } from "@/components/recipes/ingredient-upcoming-uses";
+import { RecipeRemindersNote } from "@/components/reminders/recipe-reminders-note";
 import { cn } from "@/lib/cn";
 import { groupIngredientsByCategory } from "@/lib/recipes/ingredient-groups";
 import { isOptionalIngredient } from "@/lib/recipes/optional";
@@ -62,9 +63,13 @@ export function RecipeDetail({
   chosenIngredientIds,
   showEdit,
   showTitle = true,
+  mealDate = null,
 }: {
   recipe: RecipeView;
   mealPlanId: number | null;
+  /** Date of the meal in context (`?meal=`), so the reminder note can name
+   *  concrete days instead of "1 Tag vorher". */
+  mealDate?: string | null;
   /** When viewing the recipe for a specific meal (`?meal=`), the set of
    *  recipe-ingredient ids this meal actually put on the shopping list. Within
    *  an alternative group that has any chosen member, the chosen row(s) are
@@ -163,6 +168,11 @@ export function RecipeDetail({
         </div>
 
         <NeedsUpdateHint recipe={recipe} className="mt-6" />
+        <RecipeRemindersNote
+          reminders={recipe.reminders}
+          mealDate={mealDate}
+          className="mt-6"
+        />
 
         {recipe.photoPath ? (
           <div className="mt-6 overflow-hidden rounded-[var(--radius)] border border-[var(--color-border)]">

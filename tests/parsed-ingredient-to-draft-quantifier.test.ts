@@ -101,6 +101,7 @@ function minimalRecipeView(
     prepTimeMin: null,
     cookTimeMin: null,
     tags: [],
+    reminders: [],
     isVegan: null,
     isVegetarian: null,
     dietConfidence: "low",

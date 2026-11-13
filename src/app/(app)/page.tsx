@@ -11,6 +11,7 @@ import {
   listSupermarkets,
 } from "@/lib/stammdaten/supermarket/service";
 import { listRecipes } from "@/lib/recipes/service";
+import { listReminders } from "@/lib/reminders/service";
 import { DashboardRefresher } from "@/components/dashboard/dashboard-refresher";
 import { TodayShoppingWarning } from "@/components/dashboard/today-shopping-warning";
 import { UpcomingMealsCard } from "@/components/dashboard/upcoming-meals-card";
@@ -29,6 +30,7 @@ export default function Home() {
     addDays(today, i),
   );
   const meals = listByDateRange(dates[0], dates[dates.length - 1]);
+  const reminders = listReminders(dates[0], dates[dates.length - 1]);
 
   const todayStatus = getTodayMealShoppingStatus();
 
@@ -67,6 +69,7 @@ export default function Home() {
           <UpcomingMealsCard
             dates={dates}
             meals={meals}
+            reminders={reminders}
             today={today}
             className="lg:row-span-2"
           />

@@ -11,6 +11,8 @@ import type { MealPlanView } from "@/lib/meal-plans/types";
 import type { CalendarEvent } from "@/lib/ical/events";
 import { MealCard } from "./meal-card";
 import { EventList } from "./event-list";
+import { ReminderList } from "@/components/reminders/reminder-list";
+import type { ReminderOccurrence } from "@/lib/reminders/types";
 import { cn } from "@/lib/cn";
 
 type Props = {
@@ -18,6 +20,8 @@ type Props = {
   isToday: boolean;
   meals: MealPlanView[];
   events: CalendarEvent[];
+  /** Recipe reminders due on this day — may belong to a later day's meal. */
+  reminders: ReminderOccurrence[];
   onEditMeal: (meal: MealPlanView) => void;
   onReorderUp: (mealId: number) => void;
   onReorderDown: (mealId: number) => void;
@@ -41,6 +45,7 @@ export function DayCell({
   isToday,
   meals,
   events,
+  reminders,
   onEditMeal,
   onReorderUp,
   onReorderDown,
@@ -85,6 +90,23 @@ export function DayCell({
           </span>
         </div>
       </header>
+
+      {/* Prep reminders sit above events and meals, full width: they're the
+          day's to-dos, and often for a meal that isn't on this day at all. */}
+      <ReminderList
+        reminders={reminders}
+        className="mb-2"
+        renderAction={(r, content, className) => (
+          <button
+            type="button"
+            className={className}
+            onClick={() => onPreviewRecipe(r.recipeId, r.mealPlanId)}
+            title={`${r.time} — ${r.text} (für ${r.recipeTitle})`}
+          >
+            {content}
+          </button>
+        )}
+      />
 
       <div className="grid flex-1 grid-cols-1 gap-2 md:grid-cols-[1fr_1px_2fr]">
         <EventList events={events} />

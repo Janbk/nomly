@@ -224,6 +224,17 @@ export type DraftRecipe = {
   photoUrl: string;
   tags: string[];
   sections: DraftSection[];
+  reminders: DraftReminder[];
+};
+
+/** Editable advance reminder on the recipe form. */
+export type DraftReminder = {
+  uid: string;
+  /** 0 = meal day, n = n days before. */
+  daysBefore: number;
+  /** Local hour 0–23. */
+  hour: number;
+  text: string;
 };
 
 /**
@@ -480,6 +491,12 @@ export function recipeToDraft(recipe: RecipeView): DraftRecipe {
     photoPath: recipe.photoPath,
     photoUrl: "",
     tags: recipe.tags,
+    reminders: recipe.reminders.map((r) => ({
+      uid: crypto.randomUUID(),
+      daysBefore: r.daysBefore,
+      hour: r.hour,
+      text: r.text,
+    })),
     sections: recipe.sections.map((s) => ({
       uid: crypto.randomUUID(),
       title: s.title ?? "",
@@ -544,6 +561,7 @@ export function emptyRecipe(): DraftRecipe {
     photoPath: null,
     photoUrl: "",
     tags: [],
+    reminders: [],
     sections: [
       {
         uid: "initial-section",

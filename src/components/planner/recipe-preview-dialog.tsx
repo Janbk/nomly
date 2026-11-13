@@ -26,6 +26,7 @@ import {
   UpcomingUsesProvider,
 } from "@/components/recipes/ingredient-upcoming-uses";
 import { renderMarkdown } from "@/lib/markdown";
+import { RecipeRemindersNote } from "@/components/reminders/recipe-reminders-note";
 import { isOptionalIngredient } from "@/lib/recipes/optional";
 import type { RecipeView } from "@/lib/recipes/types";
 
@@ -195,6 +196,7 @@ function RecipeBody({ recipeId, mealPlanId }: { recipeId: number; mealPlanId: nu
         </header>
 
         <NeedsUpdateHint recipe={recipe} />
+        <RecipeRemindersNote reminders={recipe.reminders} />
 
         {descriptionHtml ? (
           <div
