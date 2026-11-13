@@ -10,6 +10,7 @@ import {
 const upsertSchema = z.object({
   name: z.string().min(1),
   aliases: z.array(z.string()).default([]),
+  groupInRecipe: z.boolean().optional(),
 });
 
 export function GET(request: Request) {

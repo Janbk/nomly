@@ -330,6 +330,13 @@
       "when": 1794579542021,
       "tag": "0046_recipe_update_reason",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1794580677650,
+      "tag": "0047_category_group_in_recipe",
+      "breakpoints": true
     }
   ]
 }

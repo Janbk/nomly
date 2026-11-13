@@ -29,11 +29,21 @@ export type CategoryListItem = {
   name: string;
   aliases: string[];
   usageCount: number;
+  /** List this category's ingredients in their own block in the recipe view. */
+  groupInRecipe: boolean;
 };
 
 export type CategoryUpsertInput = {
   name: string;
   aliases: string[];
+  /** Omitted on update = keep the current value; on create = false. */
+  groupInRecipe?: boolean;
+};
+
+const baseColumns = {
+  id: category.id,
+  name: category.name,
+  groupInRecipe: category.groupInRecipe,
 };
 
 export class CategoryStammdatenError extends Error {
@@ -114,7 +124,7 @@ function loadUsageCounts(ids: number[]): Map<number, number> {
 function loadCategoriesBase(query?: string) {
   if (!query || query.trim().length === 0) {
     return db
-      .select({ id: category.id, name: category.name })
+      .select(baseColumns)
       .from(category)
       .orderBy(sql`unaccent(${category.name})`)
       .all();
@@ -125,7 +135,7 @@ function loadCategoriesBase(query?: string) {
     .from(categoryAlias)
     .where(sql`lower_u(${categoryAlias.name}) LIKE ${pattern}`);
   return db
-    .select({ id: category.id, name: category.name })
+    .select(baseColumns)
     .from(category)
     .where(
       or(
@@ -147,12 +157,13 @@ export function listCategories(query?: string): CategoryListItem[] {
     name: row.name,
     aliases: aliases.get(row.id) ?? [],
     usageCount: usage.get(row.id) ?? 0,
+    groupInRecipe: row.groupInRecipe,
   }));
 }
 
 export function getCategoryDetail(id: number): CategoryListItem | null {
   const row = db
-    .select({ id: category.id, name: category.name })
+    .select(baseColumns)
     .from(category)
     .where(eq(category.id, id))
     .get();
@@ -164,6 +175,7 @@ export function getCategoryDetail(id: number): CategoryListItem | null {
     name: row.name,
     aliases: aliases.get(row.id) ?? [],
     usageCount: usage.get(row.id) ?? 0,
+    groupInRecipe: row.groupInRecipe,
   };
 }
 
@@ -229,7 +241,7 @@ export function createCategory(input: CategoryUpsertInput): CategoryListItem {
   const id = db.transaction((tx) => {
     const inserted = tx
       .insert(category)
-      .values({ name })
+      .values({ name, groupInRecipe: input.groupInRecipe ?? false })
       .returning({ id: category.id })
       .all();
     const newId = inserted[0].id;
@@ -256,7 +268,14 @@ export function updateCategory(
 
   const { name, aliases } = validateInput(input, id);
   db.transaction((tx) => {
-    tx.update(category).set({ name }).where(eq(category.id, id)).run();
+    tx.update(category)
+      .set(
+        input.groupInRecipe === undefined
+          ? { name }
+          : { name, groupInRecipe: input.groupInRecipe },
+      )
+      .where(eq(category.id, id))
+      .run();
     tx.delete(categoryAlias).where(eq(categoryAlias.categoryId, id)).run();
     if (aliases.length > 0) {
       tx.insert(categoryAlias)

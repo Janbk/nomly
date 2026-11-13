@@ -15,7 +15,16 @@ const columns: ColumnDef<CategoryItem>[] = [
   {
     key: "name",
     header: "Name",
-    cell: (item) => <span className="font-medium">{item.name}</span>,
+    cell: (item) => (
+      <span className="flex flex-wrap items-center gap-2">
+        <span className="font-medium">{item.name}</span>
+        {item.groupInRecipe ? (
+          <Badge variant="outline" title="Wird in Rezepten gruppiert angezeigt">
+            Gruppiert
+          </Badge>
+        ) : null}
+      </span>
+    ),
   },
   {
     key: "aliases",

@@ -256,6 +256,18 @@ export type RecipeIngredientView = {
    *  highlight ingredient mentions in the section instructions even when the
    *  cooking step uses a different spelling than the list row. */
   aliases: string[];
+  /** Set when the article's default category is flagged "in Rezepten
+   *  gruppieren": the recipe view lists this row in that category's block.
+   *  Null = ungrouped (also for unassigned lines and uncategorized articles). */
+  ingredientGroup: IngredientGroup | null;
+};
+
+/** A category whose ingredients the recipe view lists in their own block. */
+export type IngredientGroup = {
+  categoryId: number;
+  name: string;
+  /** Position in the category list's order — blocks are sorted by this. */
+  rank: number;
 };
 
 export type RecipeSectionView = {
