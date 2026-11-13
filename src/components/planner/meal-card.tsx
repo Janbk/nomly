@@ -30,7 +30,7 @@ type Props = {
   onToggleLeftover: (mealId: number, next: boolean) => void;
   /** Duplicate this meal onto the next day as a leftover. */
   onDuplicateLeftover: (mealId: number) => void;
-  onPreviewRecipe: (recipeId: number, mealPlanId: number) => void;
+  onPreviewRecipe: (recipeId: number, mealPlanId: number, mealDate: string) => void;
   /** Disable DnD on mobile breakpoints — the parent decides via media query. */
   draggable: boolean;
 };
@@ -119,7 +119,7 @@ export function MealCard({
     }
     e.preventDefault();
     e.stopPropagation();
-    onPreviewRecipe(meal.recipe.id, meal.id);
+    onPreviewRecipe(meal.recipe.id, meal.id, meal.date);
   };
 
   // Capture the source's viewport rect at pointer-down so the dragging style
@@ -453,7 +453,7 @@ type MobileProps = {
   onAdjustPortions: (mealId: number, delta: number) => void;
   onToggleLeftover: (mealId: number, next: boolean) => void;
   onDuplicateLeftover: (mealId: number) => void;
-  onPreviewRecipe: (recipeId: number, mealPlanId: number) => void;
+  onPreviewRecipe: (recipeId: number, mealPlanId: number, mealDate: string) => void;
 };
 
 // Swipe thresholds (px). Left past EDIT_TRIGGER opens the editor on release;
@@ -552,7 +552,7 @@ function MobileMealCard({
       return;
     }
     e.preventDefault();
-    onPreviewRecipe(meal.recipe.id, meal.id);
+    onPreviewRecipe(meal.recipe.id, meal.id, meal.date);
   }
 
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
