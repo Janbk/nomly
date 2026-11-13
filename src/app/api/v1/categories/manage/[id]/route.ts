@@ -15,6 +15,7 @@ import { publishShoppingChanged } from "@/lib/shopping/realtime";
 const updateSchema = z.object({
   name: z.string().min(1),
   aliases: z.array(z.string()).default([]),
+  groupInRecipe: z.boolean().optional(),
 });
 
 export async function GET(

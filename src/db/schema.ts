@@ -156,6 +156,16 @@ export const quantifierAlias = sqliteTable("quantifier_alias", {
 export const category = sqliteTable("category", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
+  /**
+   * When true, the recipe view lists a recipe's ingredients whose article
+   * has this as its default category in their own block under a heading
+   * (e.g. "Gewürze"), below the ungrouped ones. Grouped blocks follow the
+   * category list's (alphabetical) order; within a block the recipe's own
+   * ingredient order is kept. Display-only — no effect on shopping.
+   */
+  groupInRecipe: integer("group_in_recipe", { mode: "boolean" })
+    .notNull()
+    .default(false),
 });
 
 export const categoryAlias = sqliteTable("category_alias", {

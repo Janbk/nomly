@@ -12,6 +12,7 @@ import {
   unit as unitTable,
   unitAlias as unitAliasTable,
   quantifier as quantifierTable,
+  category as categoryTable,
 } from "../../db/schema.ts";
 import { resolveUnitLabel, type LabelForm } from "../units/label.ts";
 import {
@@ -21,6 +22,7 @@ import {
 import type { RecipeDiet } from "./diet.ts";
 import type {
   AliasWarning,
+  IngredientGroup,
   RecipeInput,
   RecipeListItem,
   RecipeView,
@@ -506,6 +508,8 @@ export function getRecipe(
     // NULL when the row has no article (unassigned) — coalesced to false in
     // the view mapping below.
     isEquipment: boolean | null;
+    // NULL for unassigned lines and uncategorized articles.
+    defaultCategoryId: number | null;
     sortOrder: number;
     alternativeForId: number | null;
     needsUpdate: boolean;
@@ -543,6 +547,7 @@ export function getRecipe(
             rawLine: recipeIngredient.rawLine,
             dietaryClass: ingredientTable.dietaryClass,
             isEquipment: ingredientTable.isEquipment,
+            defaultCategoryId: ingredientTable.defaultCategoryId,
             sortOrder: recipeIngredient.sortOrder,
             alternativeForId: recipeIngredient.alternativeForId,
             needsUpdate: recipeIngredient.needsUpdate,
@@ -600,6 +605,23 @@ export function getRecipe(
       displayUnit: i.displayUnit,
       quantity: i.quantity,
     });
+
+  // Categories flagged "in Rezepten gruppieren", ranked in the category
+  // list's order (same `unaccent(name)` sort as the Kategorien settings page).
+  // Only a handful of rows, so loading them all is cheaper than a join.
+  const groupByCategory = new Map<number, IngredientGroup>();
+  db.select({ id: categoryTable.id, name: categoryTable.name })
+    .from(categoryTable)
+    .where(eq(categoryTable.groupInRecipe, true))
+    .orderBy(sql`unaccent(${categoryTable.name})`)
+    .all()
+    .forEach((c, rank) =>
+      groupByCategory.set(c.id, { categoryId: c.id, name: c.name, rank }),
+    );
+  const ingredientGroupFor = (i: IngredientRow): IngredientGroup | null =>
+    i.ingredientId != null && i.defaultCategoryId != null
+      ? (groupByCategory.get(i.defaultCategoryId) ?? null)
+      : null;
 
   // Every accrued spelling for the recipe's ingredients, so the instructions
   // can highlight a mention even when the cooking step uses a different form
@@ -707,6 +729,7 @@ export function getRecipe(
             i.ingredientId != null
               ? (aliasesByIngredient.get(i.ingredientId) ?? [])
               : [],
+          ingredientGroup: ingredientGroupFor(i),
         })),
     })),
     createdAt: head.createdAt,

@@ -28,6 +28,7 @@ import {
   UpcomingUsesProvider,
 } from "@/components/recipes/ingredient-upcoming-uses";
 import { cn } from "@/lib/cn";
+import { groupIngredientsByCategory } from "@/lib/recipes/ingredient-groups";
 import { isOptionalIngredient } from "@/lib/recipes/optional";
 import type { RecipeView } from "@/lib/recipes/types";
 import { highlightIngredientMentions, renderMarkdown } from "@/lib/markdown";
@@ -355,14 +356,30 @@ export function RecipeDetail({
               </ul>
             );
 
+            const subheading = (label: string) => (
+              <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted-fg)]">
+                {label}
+              </h3>
+            );
+
+            // Ungrouped food rows first (no heading), then one block per
+            // category flagged "in Rezepten gruppieren" (e.g. "Gewürze"),
+            // then the equipment block.
             const ingredientList = (
               <div className="space-y-4">
-                {renderList(consumables)}
+                {groupIngredientsByCategory(consumables).map((block) =>
+                  block.group == null ? (
+                    <Fragment key="ungrouped">{renderList(block.rows)}</Fragment>
+                  ) : (
+                    <div key={block.group.categoryId} className="space-y-1">
+                      {subheading(block.group.name)}
+                      {renderList(block.rows)}
+                    </div>
+                  ),
+                )}
                 {equipment.length > 0 ? (
                   <div className="space-y-1">
-                    <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--color-muted-fg)]">
-                      Du brauchst auch
-                    </h3>
+                    {subheading("Du brauchst auch")}
                     {renderList(equipment)}
                   </div>
                 ) : null}

@@ -1,0 +1,1 @@
+ALTER TABLE `category` ADD `group_in_recipe` integer DEFAULT false NOT NULL;
