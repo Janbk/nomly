@@ -18,12 +18,12 @@ export type FetchResult = {
 };
 
 export class FetchError extends Error {
-  constructor(
-    message: string,
-    public readonly status?: number,
-  ) {
+  readonly status?: number;
+
+  constructor(message: string, status?: number) {
     super(message);
     this.name = "FetchError";
+    this.status = status;
   }
 }
 

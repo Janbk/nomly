@@ -96,11 +96,13 @@ export function RecipeGridVirtual({
     key: string;
     recipes: RecipeListItem[];
   } | null>(null);
-  const [errored, setErrored] = React.useState(false);
+  // Tagged with the filter key like `loaded`, so changing the filter clears
+  // the error without resetting state inside the effect.
+  const [erroredKey, setErroredKey] = React.useState<string | null>(null);
+  const errored = erroredKey === filterKey;
 
   React.useEffect(() => {
     let active = true;
-    setErrored(false);
     const params = new URLSearchParams();
     if (q) params.set("q", q);
     if (must) params.set("must", must);
@@ -115,7 +117,7 @@ export function RecipeGridVirtual({
         if (active) setLoaded({ key: filterKey, recipes: data.recipes });
       })
       .catch(() => {
-        if (active) setErrored(true);
+        if (active) setErroredKey(filterKey);
       });
     return () => {
       active = false;

@@ -62,7 +62,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `node --experimental-transform-types --disable-warning=ExperimentalWarning server.mts`,
+      command: `node server.mts`,
       url: `http://127.0.0.1:${E2E_CONFIG.appPort}/api/health`,
       env: appEnv,
       reuseExistingServer: !process.env.CI,

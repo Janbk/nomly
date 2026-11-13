@@ -4,8 +4,7 @@ import { parseArgs } from "node:util";
 // Mint a machine API token (for the Familywall API importer or any other
 // non-browser client). Run inside the prod container against the live DB:
 //   docker compose exec nomly \
-//     node --experimental-transform-types --disable-warning=ExperimentalWarning \
-//     scripts/create-api-token.mts --name import-cli
+//     node scripts/create-api-token.mts --name import-cli
 //
 // The raw token is printed ONCE — only its sha256 hash is stored.
 

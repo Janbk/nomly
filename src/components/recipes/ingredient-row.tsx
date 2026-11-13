@@ -274,7 +274,7 @@ export function IngredientRow({
         const data = (await r.json()) as { matches: ServerMatch[] };
         if (controller.signal.aborted) return;
         const v = valueRef.current;
-        const hasUserEdited = value.name !== seededNameRef.current;
+        const hasUserEdited = v.name !== seededNameRef.current;
         // Store the raw matcher results only. The currently-selected
         // ingredient is surfaced at render time (`CandidatePills` synthesizes
         // a chip for it when the matcher didn't return it), so a stale
@@ -1056,7 +1056,7 @@ export function IngredientRow({
         {rowAmountError ? (
           <p className="mt-1 text-xs text-[var(--color-danger)]">
             Menge muss eine Zahl oder ein bekannter Mengenbezeichner sein (z. B.
-            „einige", „zwei", „ein paar").
+            „einige“, „zwei“, „ein paar“).
           </p>
         ) : null}
         {editingArticleId != null ? (

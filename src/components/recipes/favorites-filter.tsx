@@ -29,9 +29,11 @@ export function FavoritesFilter({
 
   // Keep the dropdown in sync when the URL changes to a concrete user (back
   // navigation, or another control clearing the filter).
-  React.useEffect(() => {
+  const [prevFav, setPrevFav] = React.useState(fav);
+  if (fav !== prevFav) {
+    setPrevFav(fav);
     if (active) setSelected(Number(fav));
-  }, [fav, active]);
+  }
 
   if (users.length === 0) return null;
 

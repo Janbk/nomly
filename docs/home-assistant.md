@@ -17,14 +17,12 @@ Mint two tokens (run inside the prod container, against the live DB):
 ```bash
 # Full token — for the REST sensors / rest_commands (read + write the API).
 docker compose exec nomly \
-  node --experimental-transform-types --disable-warning=ExperimentalWarning \
-  scripts/create-api-token.mts --name home-assistant
+  node scripts/create-api-token.mts --name home-assistant
 
 # Embed token — only the recipe-iframe allow-list (reads + the "Update
 # vormerken" toggle). Goes in the dashboard iframe URL.
 docker compose exec nomly \
-  node --experimental-transform-types --disable-warning=ExperimentalWarning \
-  scripts/create-api-token.mts --name home-assistant-embed --scope embed
+  node scripts/create-api-token.mts --name home-assistant-embed --scope embed
 ```
 
 Each raw token is printed **once**. The **full** token is used in
