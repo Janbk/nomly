@@ -120,4 +120,4 @@ esac
 echo "→ nomly dev ($mode) on ${bind_host}:${port}, public URL ${base_url:-(BASE_URL from .env.local)}, DB ${db}"
 export DATABASE_URL="$db" PORT="$port" HOSTNAME="$bind_host"
 if [ -n "$base_url" ]; then export BASE_URL="$base_url"; fi
-exec node --experimental-transform-types --disable-warning=ExperimentalWarning server.mts
+exec node server.mts

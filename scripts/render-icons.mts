@@ -34,7 +34,7 @@ export async function renderIcons(dir: string): Promise<void> {
   }
 }
 
-// Allow running as a CLI: `node --experimental-transform-types ... scripts/render-icons.mts`
+// Allow running as a CLI: `node scripts/render-icons.mts`
 const isMain = process.argv[1] === fileURLToPath(import.meta.url);
 if (isMain) {
   const here = dirname(fileURLToPath(import.meta.url));

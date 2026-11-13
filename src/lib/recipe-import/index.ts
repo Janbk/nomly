@@ -206,12 +206,12 @@ export type ImportedRecipe = {
 };
 
 export class ImportError extends Error {
-  constructor(
-    message: string,
-    public readonly code: "fetch" | "parse" | "noRecipe" | "image",
-  ) {
+  readonly code: "fetch" | "parse" | "noRecipe" | "image";
+
+  constructor(message: string, code: ImportError["code"]) {
     super(message);
     this.name = "ImportError";
+    this.code = code;
   }
 }
 

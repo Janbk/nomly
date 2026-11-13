@@ -17,13 +17,8 @@ import { E2E_CONFIG } from "./config.ts";
  * bypass to the app. No IdP is contacted — `renewSessionIfStale` only spends a
  * refresh token, and the minted session deliberately carries none.
  */
-const NODE_FLAGS = [
-  "--experimental-transform-types",
-  "--disable-warning=ExperimentalWarning",
-];
-
 function run(script: string, env: Record<string, string>): void {
-  execFileSync("node", [...NODE_FLAGS, script], {
+  execFileSync("node", [script], {
     stdio: "inherit",
     env: { ...process.env, ...env },
   });

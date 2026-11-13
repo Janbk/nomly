@@ -12,7 +12,12 @@
 # better-sqlite3 13 fixes that at the root by moving to `Napi::ObjectWrap`
 # (node-addon-api), which never touches the aborting API, so this no longer
 # needs to sit on 24.18. Bumping it stays a deliberate, reviewable edit.
-ARG NODE_IMAGE=node:24.19.0-alpine
+#
+# Node 26 (LTS since 26.13.0) bundles npm 11.20, which only runs dependency
+# install scripts listed under `allowScripts` in package.json. better-sqlite3
+# is denied on purpose: it ships N-API prebuilds (incl. linuxmusl-x64/arm64),
+# and its install script would only spawn node-gyp to confirm that.
+ARG NODE_IMAGE=node:26.13.1-alpine
 
 # ---------- Builder ----------
 FROM ${NODE_IMAGE} AS builder

@@ -108,11 +108,7 @@ if (shiftDays > 0) {
 console.log("→ migrating to head");
 execFileSync(
   process.execPath,
-  [
-    "--experimental-transform-types",
-    "--disable-warning=ExperimentalWarning",
-    "scripts/migrate.mts",
-  ],
+  ["scripts/migrate.mts"],
   { stdio: "inherit", env: { ...process.env, DATABASE_URL: target } },
 );
 console.log("→ dev seed loaded");
