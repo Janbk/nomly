@@ -341,6 +341,20 @@ export function isMealLeftover(id: number): boolean {
   return row?.isLeftover ?? false;
 }
 
+/** The planned date of a meal of `recipeId`, or null when the meal doesn't
+ *  exist or belongs to another recipe (a stale `?meal=` link). */
+export function getMealDateForRecipe(
+  mealPlanId: number,
+  recipeId: number,
+): string | null {
+  const row = db
+    .select({ date: mealPlan.date })
+    .from(mealPlan)
+    .where(and(eq(mealPlan.id, mealPlanId), eq(mealPlan.recipeId, recipeId)))
+    .get();
+  return row?.date ?? null;
+}
+
 export function listByDateRange(from: string, to: string): MealPlanView[] {
   assertIsoDate(from);
   assertIsoDate(to);

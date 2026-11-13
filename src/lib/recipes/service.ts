@@ -4,6 +4,7 @@ import {
   recipe,
   recipeFavorite,
   recipeIngredient,
+  recipeReminder,
   recipeSection,
   recipeTag,
   tag,
@@ -25,6 +26,7 @@ import type {
   IngredientGroup,
   RecipeInput,
   RecipeListItem,
+  RecipeReminderInput,
   RecipeView,
 } from "./types.ts";
 import { deriveDiet, type IngredientDietaryClass } from "./diet.ts";
@@ -379,6 +381,26 @@ function writeTags(tx: Tx, recipeId: number, tagNames: string[]) {
   }
 }
 
+function writeReminders(
+  tx: Tx,
+  recipeId: number,
+  reminders: RecipeReminderInput[],
+) {
+  reminders.forEach((r, i) => {
+    const text = r.text.trim();
+    if (text.length === 0) return;
+    tx.insert(recipeReminder)
+      .values({
+        recipeId,
+        daysBefore: r.daysBefore,
+        hour: r.hour,
+        text,
+        sortOrder: i,
+      })
+      .run();
+  });
+}
+
 export function createRecipe(input: RecipeInput): number {
   return db.transaction((tx) => {
     const inserted = tx
@@ -397,6 +419,7 @@ export function createRecipe(input: RecipeInput): number {
     const recipeId = inserted[0].id;
     writeSections(tx, recipeId, input.sections, input.newIngredientDefaults);
     writeTags(tx, recipeId, input.tags);
+    writeReminders(tx, recipeId, input.reminders ?? []);
     return recipeId;
   });
 }
@@ -440,6 +463,12 @@ export function updateRecipeTx(
     input.newIngredientDefaults,
   );
   writeTags(tx, id, input.tags);
+  // Omitted = untouched: callers that rebuild a recipe from its ingredients
+  // alone (bulk re-parse apply) must not wipe its reminders.
+  if (input.reminders !== undefined) {
+    tx.delete(recipeReminder).where(eq(recipeReminder.recipeId, id)).run();
+    writeReminders(tx, id, input.reminders);
+  }
   return { aliasWarnings };
 }
 
@@ -662,6 +691,18 @@ export function getRecipe(
     .map((t) => t.name)
     .sort();
 
+  const reminders = db
+    .select({
+      id: recipeReminder.id,
+      daysBefore: recipeReminder.daysBefore,
+      hour: recipeReminder.hour,
+      text: recipeReminder.text,
+    })
+    .from(recipeReminder)
+    .where(eq(recipeReminder.recipeId, id))
+    .orderBy(recipeReminder.sortOrder, recipeReminder.id)
+    .all();
+
   const diet = deriveDiet(
     ingredients
       // Unassigned lines (no article) carry no dietary class — they must not
@@ -681,6 +722,7 @@ export function getRecipe(
     prepTimeMin: head.prepTimeMin,
     cookTimeMin: head.cookTimeMin,
     tags,
+    reminders,
     isVegan: diet.isVegan,
     isVegetarian: diet.isVegetarian,
     dietConfidence: diet.confidence,

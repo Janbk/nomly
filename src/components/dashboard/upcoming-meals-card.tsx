@@ -16,6 +16,8 @@ import {
   todayIso,
 } from "@/lib/meal-plans/dates";
 import { filterUpcomingDates } from "@/lib/meal-plans/upcoming-dates";
+import type { ReminderOccurrence } from "@/lib/reminders/types";
+import { ReminderList } from "@/components/reminders/reminder-list";
 import { OfflineAwareLink } from "./offline-aware-link";
 import { cn } from "@/lib/cn";
 
@@ -32,12 +34,15 @@ function dayLabel(iso: string, today: string): string {
 export function UpcomingMealsCard({
   dates,
   meals,
+  reminders = [],
   today,
   className,
 }: {
   /** ISO dates to show, in order (first entry is today). */
   dates: string[];
   meals: MealPlanView[];
+  /** Recipe reminders due on those dates (may prepare later meals). */
+  reminders?: ReminderOccurrence[];
   today: string;
   className?: string;
 }) {
@@ -59,6 +64,12 @@ export function UpcomingMealsCard({
     const list = byDate.get(meal.date) ?? [];
     list.push(meal);
     byDate.set(meal.date, list);
+  }
+  const remindersByDate = new Map<string, ReminderOccurrence[]>();
+  for (const r of reminders) {
+    const list = remindersByDate.get(r.date) ?? [];
+    list.push(r);
+    remindersByDate.set(r.date, list);
   }
 
   return (
@@ -97,6 +108,18 @@ export function UpcomingMealsCard({
                   {formatDayMonthDe(date)}
                 </span>
               </div>
+              <ReminderList
+                reminders={remindersByDate.get(date) ?? []}
+                className="mb-2"
+                renderAction={(r, content, className) => (
+                  <OfflineAwareLink
+                    href={`/rezepte/${r.recipeId}?meal=${r.mealPlanId}`}
+                    className={className}
+                  >
+                    {content}
+                  </OfflineAwareLink>
+                )}
+              />
               {dayMeals.length === 0 ? (
                 <p className="text-sm text-[var(--color-muted-fg)]">
                   Nichts geplant.

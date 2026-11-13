@@ -76,6 +76,29 @@ export const reparseMute = sqliteTable(
   (t) => [index("reparse_mute_recipe_idx").on(t.recipeId)],
 );
 
+/**
+ * Advance reminder attached to a recipe ("soak the chickpeas the evening
+ * before"). Relative to the day the recipe is planned: `days_before` = 0 is the
+ * meal day itself, 1 the day before, …; `hour` is the local hour (0–23) the
+ * reminder is due. Each non-leftover meal_plan row of the recipe yields one
+ * concrete occurrence per reminder (see lib/reminders/service.ts) — nothing is
+ * materialized per meal, so moving a meal moves its reminders with it.
+ */
+export const recipeReminder = sqliteTable(
+  "recipe_reminder",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    recipeId: integer("recipe_id")
+      .notNull()
+      .references(() => recipe.id, { onDelete: "cascade" }),
+    daysBefore: integer("days_before").notNull().default(0),
+    hour: integer("hour").notNull(),
+    text: text("text").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (t) => [index("recipe_reminder_recipe_idx").on(t.recipeId)],
+);
+
 export const unit = sqliteTable("unit", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),

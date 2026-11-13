@@ -66,6 +66,7 @@ rest:
         value_template: "{{ value_json.mealPlans | length }}"
         json_attributes:
           - mealPlans
+          - reminders
 ```
 
 > `resource_template` is re-evaluated each `scan_interval`, so the `from`/`to`
@@ -79,6 +80,13 @@ full array. Each meal exposes `recipe.id`, `recipe.title`, `recipe.photoPath`,
 unset), and `isLeftover`. Photo URL:
 `https://nomly.weingaertner.pro/api/v1/<photoPath>`.
 
+The `reminders` **attribute** holds the recipe reminders ("Vorbereitung") due
+on the requested days — by the day the reminder is *due*, so a "2 Tage vorher"
+reminder for a meal later in the week shows up here too. Each carries `date`,
+`time` (`"18:00"`), `hour`, `text`, `recipeTitle`, `recipeId`, `mealPlanId`,
+`mealDate` and `daysBefore`, sorted by day and time. Leftover days never produce
+reminders.
+
 `isLeftover` is `true` for a leftover day ("we're eating this again"). These
 meals are intentionally excluded from the shopping list and ingredient timing —
 surface them with a label rather than hiding them, so the dashboard still shows
@@ -91,6 +99,9 @@ type: markdown
 content: |
   {% for m in state_attr('sensor.nomly_meals','mealPlans') %}
   - **{{ m.date }}** — {{ m.recipe.title }} ({{ m.servings }} P.){% if m.isLeftover %} — ♻︎ Reste{% endif %}
+  {% endfor %}
+  {% for r in state_attr('sensor.nomly_meals','reminders') or [] %}
+  - 🔔 **{{ r.date }} {{ r.time }}** — {{ r.text }} (für {{ r.recipeTitle }})
   {% endfor %}
 ```
 
@@ -186,22 +197,43 @@ card:
       function header(label, d) {
         return { type: 'heading', heading: label + ' – ' + fmt(d), heading_style: 'title' };
       }
+      function esc(t) {
+        return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+      // Prep reminders ("Vorbereitung") as highlighted warning boxes. The
+      // title names the meal, plus its weekday when it's on a later day.
+      function reminderCard(list) {
+        return {
+          type: 'markdown',
+          content: list.map(function (r) {
+            var forMeal = r.recipeTitle + (r.mealDate !== r.date
+              ? ' (' + new Date(r.mealDate + 'T12:00:00').toLocaleDateString('de-DE', { weekday: 'short' }) + ')'
+              : '');
+            return '<ha-alert alert-type="warning" title="' + esc(r.time + ' · ' + forMeal) + '">' + esc(r.text) + '</ha-alert>';
+          }).join('')
+        };
+      }
 
       var s = states['sensor.nomly_meals'];
       if (!s) { return [{ type: 'markdown', content: '⚠️ `sensor.nomly_meals` nicht gefunden — REST-Sensor anlegen (Abschnitt 2) und neu laden.' }]; }
       var meals = (s.attributes && s.attributes.mealPlans) || [];
+      var reminders = (s.attributes && s.attributes.reminders) || [];
       var todayD = new Date();
       var tomorrowD = new Date(Date.now() + 864e5);
       var today = localISO(todayD);
       var tomorrow = localISO(tomorrowD);
       var todays = meals.filter(function (m) { return m.date === today; });
       var tomorrows = meals.filter(function (m) { return m.date === tomorrow; });
+      var todayRem = reminders.filter(function (r) { return r.date === today; });
+      var tomorrowRem = reminders.filter(function (r) { return r.date === tomorrow; });
 
       var cards = [header('Heute', todayD)];
+      if (todayRem.length) { cards.push(reminderCard(todayRem)); }
       if (todays.length) { todays.forEach(function (m) { cards.push(tile(m)); }); }
       else { cards.push(placeholder()); }
-      if (tomorrows.length) {
+      if (tomorrows.length || tomorrowRem.length) {
         cards.push(header('Morgen', tomorrowD));
+        if (tomorrowRem.length) { cards.push(reminderCard(tomorrowRem)); }
         tomorrows.forEach(function (m) { cards.push(tile(m)); });
       }
       return cards;
@@ -217,6 +249,11 @@ on the tile:
 ```js
 state_display: (m.isLeftover ? '♻︎ Reste · ' : '') + m.recipe.title + (m.note ? ' — ' + m.note : ''),
 ```
+
+**Reminders** sit right under each day's header as native `<ha-alert>` warning
+boxes inside a Markdown card (no extra HACS card needed): title
+"18:00 · Grünkohl Nudelsoße (Sa.)", body = the reminder text. "Morgen" now also
+appears when tomorrow only has reminders but no meal.
 
 > **Tile height:** `grid_options: { rows: 2 }` only sizes a card when it sits
 > directly in a Sections-view grid — inside this `vertical-stack` it's ignored.
@@ -489,11 +526,108 @@ automation:
 > "today" is the nomly server's local day — keep both in the same timezone (they
 > already are for a single-household setup).
 
+## 8. Recipe reminders as phone notifications
+
+Recipes can carry reminders ("Vorbereitung"): a lead time (same day … 14 days
+before the planned day), a full hour and a text — e.g. "1 Tag vorher, 18:00 —
+Kichererbsen einweichen". nomly derives the concrete reminders from the meal
+plan; HA polls once an hour and pushes whatever is due **at that hour** to the
+phones you list.
+
+`GET /api/v1/reminders?from=<day>&to=<day>&hour=<0–23>` returns exactly the
+reminders due on that day at that hour. The automation passes **its own** date
+and hour, so a few seconds of clock skew between HA and nomly (or nomly's
+container running in UTC) can't make it miss or double-fire a reminder.
+
+```json
+{
+  "reminders": [
+    {
+      "key": "220-1",
+      "date": "2026-11-13",
+      "hour": 18,
+      "time": "18:00",
+      "text": "Grünkohl aus dem Tiefkühler nehmen",
+      "recipeId": 180,
+      "recipeTitle": "Grünkohl Nudelsoße",
+      "mealPlanId": 220,
+      "mealDate": "2026-11-14",
+      "daysBefore": 1,
+      "reminderId": 1
+    }
+  ]
+}
+```
+
+```yaml
+# configuration.yaml
+rest_command:
+  nomly_reminders_due:
+    url: >-
+      https://nomly.weingaertner.pro/api/v1/reminders?from={{ now().strftime('%Y-%m-%d') }}&to={{ now().strftime('%Y-%m-%d') }}&hour={{ now().hour }}
+    method: GET
+    headers:
+      Authorization: !secret nomly_bearer
+
+automation:
+  - alias: "Nomly — Rezept-Erinnerungen"
+    mode: queued
+    trigger:
+      - platform: time_pattern
+        minutes: 0          # every full hour
+    variables:
+      # The phones to notify: one notify service per HA companion app
+      # (Settings → Devices → <phone> shows the name). Add/remove freely.
+      targets:
+        - notify.mobile_app_phone_a
+        - notify.mobile_app_phone_b
+    action:
+      - service: rest_command.nomly_reminders_due
+        response_variable: due
+      - condition: template
+        value_template: "{{ due.status == 200 and (due.content.reminders | count) > 0 }}"
+      - repeat:
+          for_each: "{{ due.content.reminders }}"
+          sequence:
+            - variables:
+                r: "{{ repeat.item }}"
+                link: "https://nomly.weingaertner.pro/rezepte/{{ repeat.item.recipeId }}?meal={{ repeat.item.mealPlanId }}"
+            - repeat:
+                for_each: "{{ targets }}"
+                sequence:
+                  - service: "{{ repeat.item }}"
+                    data:
+                      title: "🔔 {{ r.recipeTitle }}"
+                      # "Kichererbsen einweichen — für Sa." when the meal is on a later day.
+                      message: >-
+                        {{ r.text }}{% if r.mealDate != r.date %} — für {{
+                        ['Mo.','Di.','Mi.','Do.','Fr.','Sa.','So.'][strptime(r.mealDate, '%Y-%m-%d').weekday()]
+                        }}{% endif %}
+                      data:
+                        url: "{{ link }}"          # iOS: tap opens the recipe
+                        clickAction: "{{ link }}"  # Android: same
+                        tag: "nomly-reminder-{{ r.key }}"  # replaces, never duplicates
+```
+
+Notes:
+
+- **Who gets it** is decided in HA (`targets`), not in nomly. Prefer a single
+  name? Define a [notify group](https://www.home-assistant.io/integrations/group/#notify-groups)
+  (`notify.familie`) and list just that.
+- The inner `repeat` shadows `repeat.item`, which is why the reminder is copied
+  into `r` first.
+- A reminder is sent once, at its hour. If HA is down at that full hour, that
+  hour's reminders are skipped (they still show on the dashboard card and in
+  nomly).
+- Leftover days never produce reminders — you already prepared for the original
+  day.
+
 ## Endpoint reference (added for HA)
 
 | Method | Path | Purpose |
 | ------ | ---- | ------- |
-| GET | `/api/v1/meal-plans?from=&to=` | Meals in a date range. Each carries `note` and `isLeftover`. |
+| GET | `/api/v1/meal-plans?from=&to=` | Meals in a date range. Each carries `note` and `isLeftover`. Plus `reminders` due in the range. |
+| GET | `/api/v1/reminders?from=&to=[&hour=]` | Recipe reminders due in the range (optionally only at one hour) — the notification poll. |
 | POST | `/api/v1/shopping/items` `{byName}` | Add an item (existing). |
 | GET | `/api/v1/ingredients/usage?name=` | Where an ingredient is used + on-list. |
 | GET | `/api/v1/shopping/store-availability` | Per-store still-needed count. |

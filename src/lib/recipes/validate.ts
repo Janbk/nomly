@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { newIngredientDefaultsSchema } from "@/lib/stammdaten/ingredient/schema";
+import { MAX_REMINDER_DAYS_BEFORE } from "@/lib/reminders/format";
 
 const ingredientSchema = z
   .object({
@@ -47,6 +48,12 @@ const sectionSchema = z.object({
   ingredients: z.array(ingredientSchema),
 });
 
+const reminderSchema = z.object({
+  daysBefore: z.number().int().min(0).max(MAX_REMINDER_DAYS_BEFORE),
+  hour: z.number().int().min(0).max(23),
+  text: z.string().trim().min(1, "Erinnerungstext ist erforderlich"),
+});
+
 export const recipeInputSchema = z.object({
   title: z.string().min(1, "Titel ist erforderlich"),
   description: z.string().nullable(),
@@ -59,6 +66,7 @@ export const recipeInputSchema = z.object({
   photoUrl: z.string().nullable().optional(),
   tags: z.array(z.string()),
   sections: z.array(sectionSchema).min(1, "Mindestens einen Abschnitt anlegen"),
+  reminders: z.array(reminderSchema).optional(),
   newIngredientDefaults: z.array(newIngredientDefaultsSchema).optional(),
 });
 

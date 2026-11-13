@@ -25,6 +25,7 @@ import { SectionEditor } from "./section-editor";
 import { moveAlternativeWithinGroup } from "./alternatives";
 import { splitSectionAt } from "./split-section";
 import { TagInput } from "./tag-input";
+import { ReminderEditor } from "./reminder-editor";
 import { hasReparsableRows, reparseAll } from "./reparse";
 import {
   amountInputError,
@@ -61,6 +62,10 @@ function buildPayload(draft: DraftRecipe) {
     photoPath: draft.photoPath,
     photoUrl: draft.photoUrl.trim() || null,
     tags: draft.tags,
+    // Rows left without text carry nothing worth keeping — drop them.
+    reminders: draft.reminders
+      .map((r) => ({ daysBefore: r.daysBefore, hour: r.hour, text: r.text.trim() }))
+      .filter((r) => r.text.length > 0),
     sections: draft.sections.map((s) => ({
       title: s.title.trim() || null,
       instructions: s.instructions,
@@ -554,6 +559,20 @@ export function RecipeForm({ initial, recipeId, tagSuggestions }: Props) {
                 suggestions={tagSuggestions}
               />
             </div>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <Label>Erinnerungen (optional)</Label>
+          <p className="mt-0.5 text-xs text-[var(--color-muted-fg)]">
+            Vorbereitung relativ zum geplanten Tag — erscheint im Essensplan,
+            auf dem Dashboard und in Home Assistant.
+          </p>
+          <div className="mt-2">
+            <ReminderEditor
+              value={draft.reminders}
+              onChange={(reminders) => setDraft({ ...draft, reminders })}
+            />
           </div>
         </div>
       </div>

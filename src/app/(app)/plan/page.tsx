@@ -14,6 +14,8 @@ import {
   todayIso,
 } from "@/lib/meal-plans/dates";
 import { getEventsForRange } from "@/lib/ical/events";
+import { listReminders } from "@/lib/reminders/service";
+import { groupRemindersByDate } from "@/lib/reminders/types";
 import { refreshStaleEnabledFeeds } from "@/lib/ical/fetch";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +40,7 @@ export default async function PlanPage({
   refreshStaleEnabledFeeds();
   const calendarEvents = getEventsForRange(range.from, range.to);
   const mealPlans = listByDateRange(range.from, range.to);
+  const reminders = groupRemindersByDate(listReminders(range.from, range.to));
   // The recipe catalog is no longer shipped here — RecipePanel fetches it
   // client-side (see use-recipe-catalog) so /plan's initial payload stays
   // light and the panel can virtualize a large list.
@@ -61,6 +64,7 @@ export default async function PlanPage({
       recipeUsage={recipeUsage}
       allTags={allTags}
       calendarEvents={calendarEvents}
+      reminders={reminders}
     />
   );
 }

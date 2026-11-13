@@ -11,6 +11,8 @@ import type { MealPlanView } from "@/lib/meal-plans/types";
 import type { CalendarEvent } from "@/lib/ical/events";
 import { MealCard } from "./meal-card";
 import { EventList } from "./event-list";
+import { ReminderList } from "@/components/reminders/reminder-list";
+import type { ReminderOccurrence } from "@/lib/reminders/types";
 import { cn } from "@/lib/cn";
 
 type Props = {
@@ -18,6 +20,8 @@ type Props = {
   isToday: boolean;
   meals: MealPlanView[];
   events: CalendarEvent[];
+  /** Recipe reminders due on this day — may belong to a later day's meal. */
+  reminders: ReminderOccurrence[];
   onEditMeal: (meal: MealPlanView) => void;
   onReorderUp: (mealId: number) => void;
   onReorderDown: (mealId: number) => void;
@@ -41,6 +45,7 @@ export function DayCell({
   isToday,
   meals,
   events,
+  reminders,
   onEditMeal,
   onReorderUp,
   onReorderDown,
@@ -93,79 +98,98 @@ export function DayCell({
             stack on mobile, where it collapses to nothing). */}
         <div className="hidden bg-[var(--color-border)] md:block" aria-hidden />
 
-        {/* Meals column (DnD target). No padding on either breakpoint: meal
-            rows then sit flush to the column edge, so they're the same
-            distance from the divider as the events and their first card lines
-            up with the first event's top. */}
-        <div
-          ref={setNodeRef}
-          className={cn(
-            // `relative` so absolutely-positioned dragged cards (see
-            // MealCard's drag style) resolve their width:100% against this
-            // column instead of the viewport.
-            "relative flex min-h-[80px] flex-col gap-2 rounded-md transition-colors",
-            isOver
-              ? "bg-[color-mix(in_srgb,var(--color-accent),transparent_88%)] ring-2 ring-[var(--color-accent)]"
-              : "bg-transparent",
-          )}
-        >
-          {meals.length === 0 ? (
-            <button
-              type="button"
-              onClick={() => onAddMeal(date)}
-              className="flex h-16 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[var(--color-border)] text-xs text-[var(--color-muted-fg)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
-            >
-              <Plus className="size-3.5" />
-              Mahlzeit hinzufügen
-            </button>
-          ) : (
-            <>
-              {meals.map((meal, idx) => {
-                const isLast = idx === meals.length - 1;
-                const showAbove =
-                  dropTarget?.mealId === meal.id && dropTarget.side === "above";
-                // "below" on the last meal is rendered INSIDE the day-end
-                // zone (see below), not as a separate sibling, so we don't
-                // shift the layout out from under the cursor.
-                const showBelow =
-                  !isLast &&
-                  dropTarget?.mealId === meal.id &&
-                  dropTarget.side === "below";
-                return (
-                  <React.Fragment key={meal.id}>
-                    {showAbove ? (
-                      <DropPlaceholder size={dragSourceSize} />
-                    ) : null}
-                    <MealCard
-                      meal={meal}
-                      onEdit={onEditMeal}
-                      onReorderUp={onReorderUp}
-                      onReorderDown={onReorderDown}
-                      onDelete={onDeleteMeal}
-                      onAdjustPortions={onAdjustPortions}
-                      onToggleLeftover={onToggleLeftover}
-                      onDuplicateLeftover={onDuplicateLeftover}
-                      onPreviewRecipe={onPreviewRecipe}
-                      draggable={draggable}
-                    />
-                    {showBelow ? (
-                      <DropPlaceholder size={dragSourceSize} />
-                    ) : null}
-                  </React.Fragment>
-                );
-              })}
-              <DayEndDropZone
-                date={date}
-                lastMealId={meals[meals.length - 1].id}
-                onAddMeal={onAddMeal}
-                isDropTarget={
-                  dropTarget?.mealId === meals[meals.length - 1].id &&
-                  dropTarget.side === "below"
-                }
-                dragSourceSize={dragSourceSize}
-              />
-            </>
-          )}
+        <div className="flex flex-col gap-2">
+          {/* Prep reminders head the meals column — they belong with the
+              recipes, often for a meal on a later day. Kept outside the
+              droppable so they don't shift the meal drop targets. */}
+          <ReminderList
+            reminders={reminders}
+            renderAction={(r, content, className) => (
+              <button
+                type="button"
+                className={className}
+                onClick={() => onPreviewRecipe(r.recipeId, r.mealPlanId)}
+                title={`${r.time} — ${r.text} (für ${r.recipeTitle})`}
+              >
+                {content}
+              </button>
+            )}
+          />
+
+          {/* Meals column (DnD target). No padding on either breakpoint: meal
+              rows then sit flush to the column edge, so they're the same
+              distance from the divider as the events and their first card lines
+              up with the first event's top. */}
+          <div
+            ref={setNodeRef}
+            className={cn(
+              // `relative` so absolutely-positioned dragged cards (see
+              // MealCard's drag style) resolve their width:100% against this
+              // column instead of the viewport.
+              "relative flex min-h-[80px] flex-1 flex-col gap-2 rounded-md transition-colors",
+              isOver
+                ? "bg-[color-mix(in_srgb,var(--color-accent),transparent_88%)] ring-2 ring-[var(--color-accent)]"
+                : "bg-transparent",
+            )}
+          >
+            {meals.length === 0 ? (
+              <button
+                type="button"
+                onClick={() => onAddMeal(date)}
+                className="flex h-16 w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-[var(--color-border)] text-xs text-[var(--color-muted-fg)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"
+              >
+                <Plus className="size-3.5" />
+                Mahlzeit hinzufügen
+              </button>
+            ) : (
+              <>
+                {meals.map((meal, idx) => {
+                  const isLast = idx === meals.length - 1;
+                  const showAbove =
+                    dropTarget?.mealId === meal.id && dropTarget.side === "above";
+                  // "below" on the last meal is rendered INSIDE the day-end
+                  // zone (see below), not as a separate sibling, so we don't
+                  // shift the layout out from under the cursor.
+                  const showBelow =
+                    !isLast &&
+                    dropTarget?.mealId === meal.id &&
+                    dropTarget.side === "below";
+                  return (
+                    <React.Fragment key={meal.id}>
+                      {showAbove ? (
+                        <DropPlaceholder size={dragSourceSize} />
+                      ) : null}
+                      <MealCard
+                        meal={meal}
+                        onEdit={onEditMeal}
+                        onReorderUp={onReorderUp}
+                        onReorderDown={onReorderDown}
+                        onDelete={onDeleteMeal}
+                        onAdjustPortions={onAdjustPortions}
+                        onToggleLeftover={onToggleLeftover}
+                        onDuplicateLeftover={onDuplicateLeftover}
+                        onPreviewRecipe={onPreviewRecipe}
+                        draggable={draggable}
+                      />
+                      {showBelow ? (
+                        <DropPlaceholder size={dragSourceSize} />
+                      ) : null}
+                    </React.Fragment>
+                  );
+                })}
+                <DayEndDropZone
+                  date={date}
+                  lastMealId={meals[meals.length - 1].id}
+                  onAddMeal={onAddMeal}
+                  isDropTarget={
+                    dropTarget?.mealId === meals[meals.length - 1].id &&
+                    dropTarget.side === "below"
+                  }
+                  dragSourceSize={dragSourceSize}
+                />
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createMeal, listByDateRange } from "@/lib/meal-plans/service";
+import { listReminders } from "@/lib/reminders/service";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -25,7 +26,13 @@ export async function GET(request: Request) {
   if (from > to) {
     return NextResponse.json({ error: "`from` must be ≤ `to`" }, { status: 400 });
   }
-  return NextResponse.json({ mealPlans: listByDateRange(from, to) });
+  // `reminders` = recipe reminders due within the range (by reminder day, so
+  // they may belong to meals after `to`) — lets the Home Assistant meal
+  // sensor carry them without a second request.
+  return NextResponse.json({
+    mealPlans: listByDateRange(from, to),
+    reminders: listReminders(from, to),
+  });
 }
 
 export async function POST(request: Request) {

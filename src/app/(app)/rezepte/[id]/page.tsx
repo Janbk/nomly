@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { RecipeDetail } from "@/components/recipes/recipe-detail";
 import { getRecipe } from "@/lib/recipes/service";
+import { getMealDateForRecipe } from "@/lib/meal-plans/service";
 import { getMealShoppingChoices } from "@/lib/shopping/items";
 import { getCurrentUser } from "@/lib/users/current";
 
@@ -51,10 +52,14 @@ export default async function RecipeViewPage({
   const chosenIngredientIds =
     mealPlanId != null ? getMealShoppingChoices(mealPlanId) : undefined;
 
+  const mealDate =
+    mealPlanId != null ? getMealDateForRecipe(mealPlanId, id) : null;
+
   return (
     <RecipeDetail
       recipe={recipe}
       mealPlanId={mealPlanId}
+      mealDate={mealDate}
       chosenIngredientIds={chosenIngredientIds}
       showEdit
     />

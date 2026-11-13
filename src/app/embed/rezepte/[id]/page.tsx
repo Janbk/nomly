@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import { Soup } from "lucide-react";
 import { RecipeDetail } from "@/components/recipes/recipe-detail";
 import { getRecipe } from "@/lib/recipes/service";
-import { isMealLeftover } from "@/lib/meal-plans/service";
+import {
+  getMealDateForRecipe,
+  isMealLeftover,
+} from "@/lib/meal-plans/service";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +43,8 @@ export default async function EmbedRecipePage({
       : null;
   const showTitle = rawTitle !== "0";
   const leftover = mealPlanId != null && isMealLeftover(mealPlanId);
+  const mealDate =
+    mealPlanId != null ? getMealDateForRecipe(mealPlanId, id) : null;
 
   return (
     <main className="min-h-screen bg-[var(--color-bg)]">
@@ -59,6 +64,7 @@ export default async function EmbedRecipePage({
         <RecipeDetail
           recipe={recipe}
           mealPlanId={mealPlanId}
+          mealDate={mealDate}
           showEdit={false}
           showTitle={showTitle}
         />
