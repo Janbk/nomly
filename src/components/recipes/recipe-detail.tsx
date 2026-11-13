@@ -13,6 +13,11 @@ import { Button } from "@/components/ui/button";
 import { DietBadge } from "@/components/recipes/diet-badge";
 import { DietMarker } from "@/components/recipes/diet-marker";
 import { NeedsUpdateToggle } from "@/components/recipes/needs-update-toggle";
+import {
+  FlaggedIngredientMarker,
+  NeedsUpdateHint,
+  flaggedIngredientRowClass,
+} from "@/components/recipes/needs-update-hint";
 import { FavoriteToggle } from "@/components/recipes/favorite-toggle";
 import { IngredientLine } from "@/components/recipes/ingredient-line";
 import { buildIngredientMentions } from "@/components/recipes/ingredient-mentions";
@@ -156,6 +161,8 @@ export function RecipeDetail({
           </div>
         </div>
 
+        <NeedsUpdateHint recipe={recipe} className="mt-6" />
+
         {recipe.photoPath ? (
           <div className="mt-6 overflow-hidden rounded-[var(--radius)] border border-[var(--color-border)]">
             {/* Capped at ~18rem so the title + ingredients stay visible above
@@ -240,6 +247,7 @@ export function RecipeDetail({
                       ? "italic opacity-40"
                       : (isOptionalIngredient(ing) || unassigned) &&
                           "italic opacity-65",
+                  ing.needsUpdate && flaggedIngredientRowClass,
                 )}
               >
                 <UpcomingUsesButton
@@ -288,6 +296,7 @@ export function RecipeDetail({
                       (optional)
                     </span>
                   ) : null}
+                  {ing.needsUpdate ? <FlaggedIngredientMarker /> : null}
                 </span>
               </li>
               );

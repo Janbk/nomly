@@ -1,24 +1,18 @@
 "use client";
 
 import * as React from "react";
-import { Wrench } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { ReasonForm } from "@/components/recipes/needs-update-toggle";
 import type { ShoppingItemView } from "@/lib/shopping/items";
-import { uniqueRecipes } from "./shopping-item-row";
+import type { RecipeUpdateMark } from "./api";
+import { uniqueRecipes, type ItemRecipe } from "./shopping-item-row";
 
 /**
- * Picker shown when a shopping item is tied to more than one recipe and the
- * user wants to flag some/all of them for a later update. Marking is one-way
- * (sets needsUpdate=true); all recipes start checked.
+ * "Update vormerken" from a shopping-list row. Asks for an optional reason
+ * and — when the item is tied to more than one recipe — which of them to flag
+ * (all start checked). Marking is one-way (sets needsUpdate=true). Each
+ * flagged recipe also gets the recipe line(s) this item came from marked, so
+ * the recipe view shows which ingredient prompted the flag.
  */
 export function MarkRecipeUpdateDialog({
   item,
@@ -27,19 +21,41 @@ export function MarkRecipeUpdateDialog({
 }: {
   item: ShoppingItemView | null;
   onClose: () => void;
-  onConfirm: (recipeIds: number[]) => void;
+  onConfirm: (marks: RecipeUpdateMark[], note: string) => void;
 }) {
-  const recipes = React.useMemo(
-    () => (item ? uniqueRecipes(item.sources) : []),
-    [item],
+  return (
+    <Dialog
+      open={item != null}
+      onOpenChange={(v) => (!v ? onClose() : undefined)}
+    >
+      <DialogContent className="sm:max-w-md">
+        {/* Keyed per item so the reason and selection start fresh. */}
+        {item ? (
+          <MarkForm
+            key={item.id}
+            item={item}
+            onClose={onClose}
+            onConfirm={onConfirm}
+          />
+        ) : null}
+      </DialogContent>
+    </Dialog>
   );
-  const [selected, setSelected] = React.useState<Set<number>>(new Set());
+}
 
-  // Reset the selection to "all checked" whenever a new item opens the dialog.
-  React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSelected(new Set(recipes.map((r) => r.recipeId)));
-  }, [recipes]);
+function MarkForm({
+  item,
+  onClose,
+  onConfirm,
+}: {
+  item: ShoppingItemView;
+  onClose: () => void;
+  onConfirm: (marks: RecipeUpdateMark[], note: string) => void;
+}) {
+  const recipes = React.useMemo(() => uniqueRecipes(item.sources), [item]);
+  const [selected, setSelected] = React.useState<Set<number>>(
+    () => new Set(recipes.map((r) => r.recipeId)),
+  );
 
   const toggle = (recipeId: number) =>
     setSelected((prev) => {
@@ -49,54 +65,58 @@ export function MarkRecipeUpdateDialog({
       return next;
     });
 
+  const single = recipes.length === 1;
   return (
-    <Dialog
-      open={item != null}
-      onOpenChange={(v) => (!v ? onClose() : undefined)}
+    <ReasonForm
+      description={describe(item.name, recipes)}
+      submitDisabled={selected.size === 0}
+      onCancel={onClose}
+      onSubmit={(note) => {
+        onConfirm(marksFor(item, selected), note);
+        onClose();
+      }}
     >
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Update vormerken</DialogTitle>
-          <DialogDescription>
-            {item?.name
-              ? `„${item.name}" stammt aus mehreren Rezepten. Welche sollen für ein Update vorgemerkt werden?`
-              : "Welche Rezepte sollen für ein Update vorgemerkt werden?"}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody>
-          <ul className="flex flex-col divide-y divide-[var(--color-border)] rounded-[var(--radius)] border border-[var(--color-border)]">
-            {recipes.map((r) => (
-              <li key={r.recipeId}>
-                <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={selected.has(r.recipeId)}
-                    onChange={() => toggle(r.recipeId)}
-                    className="size-4"
-                  />
-                  <span className="font-medium">{r.recipeTitle ?? "Rezept"}</span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </DialogBody>
-        <DialogFooter className="sm:items-center sm:justify-between">
-          <Button variant="ghost" onClick={onClose}>
-            Abbrechen
-          </Button>
-          <Button
-            variant="primary"
-            disabled={selected.size === 0}
-            onClick={() => {
-              onConfirm(Array.from(selected));
-              onClose();
-            }}
-          >
-            <Wrench className="mr-2 size-4" />
-            Vormerken
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      {single ? null : (
+        <ul className="flex flex-col divide-y divide-[var(--color-border)] rounded-[var(--radius)] border border-[var(--color-border)]">
+          {recipes.map((r) => (
+            <li key={r.recipeId}>
+              <label className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selected.has(r.recipeId)}
+                  onChange={() => toggle(r.recipeId)}
+                  className="size-4"
+                />
+                <span className="font-medium">{r.recipeTitle ?? "Rezept"}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      )}
+    </ReasonForm>
   );
+}
+
+function describe(itemName: string | null, recipes: ItemRecipe[]): string {
+  const name = itemName ? `„${itemName}"` : "Die Zutat";
+  if (recipes.length === 1) {
+    const title = recipes[0].recipeTitle ?? "das Rezept";
+    return `„${title}" wird für ein Update vorgemerkt, ${name} wird darin markiert.`;
+  }
+  return `${name} stammt aus mehreren Rezepten. Welche sollen für ein Update vorgemerkt werden? Die Zutat wird darin markiert.`;
+}
+
+/** Per selected recipe, the recipe lines this item's sources point at. A
+ *  source whose line link is gone (recipe edited since) contributes none. */
+function marksFor(item: ShoppingItemView, selected: Set<number>): RecipeUpdateMark[] {
+  const byRecipe = new Map<number, Set<number>>();
+  for (const id of selected) byRecipe.set(id, new Set());
+  for (const s of item.sources) {
+    if (s.recipeId == null || s.recipeIngredientId == null) continue;
+    byRecipe.get(s.recipeId)?.add(s.recipeIngredientId);
+  }
+  return [...byRecipe].map(([recipeId, ids]) => ({
+    recipeId,
+    recipeIngredientIds: [...ids],
+  }));
 }

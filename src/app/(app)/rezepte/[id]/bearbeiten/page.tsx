@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { asc } from "drizzle-orm";
 import { RecipeForm } from "@/components/recipes/recipe-form";
+import { NeedsUpdateHint } from "@/components/recipes/needs-update-hint";
 import { getRecipe } from "@/lib/recipes/service";
 import { recipeToDraft } from "@/components/recipes/types";
 import { db } from "@/db";
@@ -54,6 +55,8 @@ export default async function EditRecipePage({
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Rezept bearbeiten</h1>
       </div>
+      {/* Why the recipe was flagged — the reason this edit is likely for. */}
+      <NeedsUpdateHint recipe={recipe} className="mt-4" />
       <div className="mt-6">
         <RecipeForm initial={draft} recipeId={id} tagSuggestions={tagSuggestions} />
       </div>

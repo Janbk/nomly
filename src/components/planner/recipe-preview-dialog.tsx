@@ -16,6 +16,12 @@ import { IngredientLine } from "@/components/recipes/ingredient-line";
 import { displayAmount } from "@/components/recipes/ingredient-read-line";
 import { NeedsUpdateToggle } from "@/components/recipes/needs-update-toggle";
 import {
+  FlaggedIngredientMarker,
+  NeedsUpdateHint,
+  flaggedIngredientRowClass,
+} from "@/components/recipes/needs-update-hint";
+import { cn } from "@/lib/cn";
+import {
   UpcomingUsesButton,
   UpcomingUsesProvider,
 } from "@/components/recipes/ingredient-upcoming-uses";
@@ -56,6 +62,9 @@ export function RecipePreviewDialog({ recipeId, mealPlanId = null, onClose }: Pr
 function RecipeBody({ recipeId, mealPlanId }: { recipeId: number; mealPlanId: number | null }) {
   const [recipe, setRecipe] = React.useState<RecipeView | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  // Bumped after the wrench toggle writes, to reload the reason hint and the
+  // flagged lines.
+  const [reloadKey, setReloadKey] = React.useState(0);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -72,7 +81,7 @@ function RecipeBody({ recipeId, mealPlanId }: { recipeId: number; mealPlanId: nu
     return () => {
       cancelled = true;
     };
-  }, [recipeId]);
+  }, [recipeId, reloadKey]);
 
   if (error) {
     return (
@@ -171,6 +180,7 @@ function RecipeBody({ recipeId, mealPlanId }: { recipeId: number; mealPlanId: nu
               recipeId={recipe.id}
               initial={recipe.needsUpdate}
               size="sm"
+              onChanged={() => setReloadKey((k) => k + 1)}
             />
             <Button asChild variant="outline" size="sm">
               <Link href={fullViewHref}>Vollansicht</Link>
@@ -183,6 +193,8 @@ function RecipeBody({ recipeId, mealPlanId }: { recipeId: number; mealPlanId: nu
             </Button>
           </div>
         </header>
+
+        <NeedsUpdateHint recipe={recipe} />
 
         {descriptionHtml ? (
           <div
@@ -206,11 +218,11 @@ function RecipeBody({ recipeId, mealPlanId }: { recipeId: number; mealPlanId: nu
                     {section.ingredients.map((ing) => (
                       <li
                         key={ing.id}
-                        className={
-                          isOptionalIngredient(ing)
-                            ? "flex items-start gap-2 italic opacity-65"
-                            : "flex items-start gap-2"
-                        }
+                        className={cn(
+                          "flex items-start gap-2",
+                          isOptionalIngredient(ing) && "italic opacity-65",
+                          ing.needsUpdate && flaggedIngredientRowClass,
+                        )}
                       >
                         <UpcomingUsesButton
                           ingredientId={ing.ingredientId}
@@ -248,6 +260,7 @@ function RecipeBody({ recipeId, mealPlanId }: { recipeId: number; mealPlanId: nu
                               (optional)
                             </span>
                           ) : null}
+                          {ing.needsUpdate ? <FlaggedIngredientMarker /> : null}
                         </span>
                       </li>
                     ))}

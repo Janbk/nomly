@@ -47,6 +47,7 @@ export default function Home() {
   const needsUpdateRecipes = listRecipes({ needsUpdate: true }).map((r) => ({
     id: r.id,
     title: r.title,
+    note: r.needsUpdateNote,
   }));
 
   return (

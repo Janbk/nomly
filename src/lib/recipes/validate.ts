@@ -24,6 +24,7 @@ const ingredientSchema = z
     fixedAmount: z.boolean().default(false),
     rawLine: z.string().nullable().default(null),
     isAlternative: z.boolean().default(false),
+    needsUpdate: z.boolean().default(false),
   })
   // An unassigned line has no article, so it can't carry an ingredient link.
   .refine((v) => !(v.unassigned && v.ingredientId != null), {

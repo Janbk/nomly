@@ -54,6 +54,10 @@ export type RecipeIngredientInput = {
    *  time. Alternatives are always persisted as optional, regardless of
    *  what {@link isOptional} carries. Defaults to false. */
   isAlternative?: boolean;
+  /** Part of the recipe's "needs update" reminder: the line the user flagged
+   *  the recipe through. Round-tripped by the editor and bulk reparse so a
+   *  save keeps the mark. Defaults to false. */
+  needsUpdate?: boolean;
 };
 
 export type RecipeSectionInput = {
@@ -155,6 +159,8 @@ export type RecipeListItem = {
   /** User flag: this recipe is marked for a later edit. Drives the card
    *  badge and the "Update nötig" list filter. */
   needsUpdate: boolean;
+  /** Optional reason given when flagging (see {@link RecipeView.needsUpdateNote}). */
+  needsUpdateNote: string | null;
   /** Whether the CURRENT viewer has favorited this recipe. */
   isFavorite: boolean;
 };
@@ -242,6 +248,9 @@ export type RecipeIngredientView = {
    *  rows. Alternatives sort immediately after their primary and are
    *  always {@link isOptional}. */
   alternativeForId: number | null;
+  /** This line is part of the recipe's "needs update" reminder (flagged from
+   *  the shopping list). Highlighted in the recipe view. */
+  needsUpdate: boolean;
   /** All accrued spellings for this ingredient (ingredient_alias.name plus any
    *  non-empty display_name renames). Empty for unassigned lines. Used to
    *  highlight ingredient mentions in the section instructions even when the
@@ -274,6 +283,9 @@ export type RecipeView = {
   dietConfidence: DietConfidence;
   /** User flag: this recipe is marked for a later edit. */
   needsUpdate: boolean;
+  /** Optional reason(s) given when flagging, one per line. Shown as a hint at
+   *  the top of the recipe. Null when none was given or the flag is off. */
+  needsUpdateNote: string | null;
   /** Whether the CURRENT viewer has favorited this recipe. */
   isFavorite: boolean;
   createdAt: number;

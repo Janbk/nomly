@@ -358,6 +358,7 @@ function writeSections(
           rawLine: ing.rawLine ?? null,
           sortOrder: iIdx,
           alternativeForId: isAlternative ? lastPrimaryRowId : null,
+          needsUpdate: ing.needsUpdate ?? false,
         })
         .returning({ id: recipeIngredient.id })
         .all();
@@ -507,6 +508,7 @@ export function getRecipe(
     isEquipment: boolean | null;
     sortOrder: number;
     alternativeForId: number | null;
+    needsUpdate: boolean;
   };
   const ingredients: IngredientRow[] =
     sectionIds.length === 0
@@ -543,6 +545,7 @@ export function getRecipe(
             isEquipment: ingredientTable.isEquipment,
             sortOrder: recipeIngredient.sortOrder,
             alternativeForId: recipeIngredient.alternativeForId,
+            needsUpdate: recipeIngredient.needsUpdate,
           })
           .from(recipeIngredient)
           .leftJoin(unitTable, eq(unitTable.id, recipeIngredient.unitId))
@@ -660,6 +663,7 @@ export function getRecipe(
     isVegetarian: diet.isVegetarian,
     dietConfidence: diet.confidence,
     needsUpdate: head.needsUpdate,
+    needsUpdateNote: head.needsUpdateNote,
     isFavorite,
     sections: sections.map((s) => ({
       id: s.id,
@@ -698,6 +702,7 @@ export function getRecipe(
           dietaryClass: i.dietaryClass,
           sortOrder: i.sortOrder,
           alternativeForId: i.alternativeForId,
+          needsUpdate: i.needsUpdate,
           aliases:
             i.ingredientId != null
               ? (aliasesByIngredient.get(i.ingredientId) ?? [])
@@ -888,23 +893,90 @@ export function listRecipes(opts: ListRecipesOptions = {}): RecipeListItem[] {
       isVegetarian: dietRow.isVegetarian,
       dietConfidence: dietRow.confidence,
       needsUpdate: r.needsUpdate,
+      needsUpdateNote: r.needsUpdateNote,
       isFavorite: myFavorites?.has(r.id) ?? false,
     };
   });
 }
 
+export type NeedsUpdateDetails = {
+  /** Why the recipe needs an update. Trimmed; blank is ignored. Appended as a
+   *  new line to an existing reason (flagging again from another shopping-list
+   *  row must not wipe the first reason); an identical line isn't repeated. */
+  note?: string | null;
+  /** recipe_ingredient rows to mark as the line(s) the recipe was flagged
+   *  through. Ids that don't belong to this recipe are ignored. */
+  recipeIngredientIds?: number[];
+};
+
 /**
- * Toggle the "needs update" reminder flag on a recipe. Returns false when no
- * recipe matched. Deliberately narrow — it touches only `needs_update` (not
- * `updatedAt`), so flagging a recipe doesn't masquerade as a content edit.
+ * Set or clear the "needs update" reminder on a recipe. Returns false when no
+ * recipe matched. Deliberately narrow — it touches only the reminder columns
+ * (not `updatedAt`), so flagging a recipe doesn't masquerade as a content
+ * edit.
+ *
+ * Setting adds the optional reason / ingredient marks from `details` on top
+ * of what's already there. Clearing drops the whole reminder: flag, reason
+ * and every ingredient mark.
  */
-export function setRecipeNeedsUpdate(id: number, needsUpdate: boolean): boolean {
-  const result = db
-    .update(recipe)
-    .set({ needsUpdate })
-    .where(eq(recipe.id, id))
-    .run();
-  return result.changes > 0;
+export function setRecipeNeedsUpdate(
+  id: number,
+  needsUpdate: boolean,
+  details: NeedsUpdateDetails = {},
+): boolean {
+  return db.transaction((tx) => {
+    const head = tx
+      .select({ note: recipe.needsUpdateNote })
+      .from(recipe)
+      .where(eq(recipe.id, id))
+      .get();
+    if (!head) return false;
+    const recipeRows = tx
+      .select({ id: recipeSection.id })
+      .from(recipeSection)
+      .where(eq(recipeSection.recipeId, id));
+
+    if (!needsUpdate) {
+      tx.update(recipe)
+        .set({ needsUpdate: false, needsUpdateNote: null })
+        .where(eq(recipe.id, id))
+        .run();
+      tx.update(recipeIngredient)
+        .set({ needsUpdate: false })
+        .where(inArray(recipeIngredient.sectionId, recipeRows))
+        .run();
+      return true;
+    }
+
+    tx.update(recipe)
+      .set({
+        needsUpdate: true,
+        needsUpdateNote: appendNote(head.note, details.note),
+      })
+      .where(eq(recipe.id, id))
+      .run();
+    const ingredientIds = details.recipeIngredientIds ?? [];
+    if (ingredientIds.length > 0) {
+      tx.update(recipeIngredient)
+        .set({ needsUpdate: true })
+        .where(
+          and(
+            inArray(recipeIngredient.id, ingredientIds),
+            inArray(recipeIngredient.sectionId, recipeRows),
+          ),
+        )
+        .run();
+    }
+    return true;
+  });
+}
+
+function appendNote(existing: string | null, add: string | null | undefined): string | null {
+  const line = add?.trim();
+  if (!line) return existing;
+  if (!existing) return line;
+  if (existing.split("\n").some((l) => l.trim() === line)) return existing;
+  return `${existing}\n${line}`;
 }
 
 /**

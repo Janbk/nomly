@@ -100,8 +100,8 @@ const EMBED_API_GET = [
 
 /**
  * PATCH endpoints the embed recipe view calls from the client. The single
- * entry is the "Update vormerken" wrench button — a one-field reminder flag,
- * deliberately the only write an embed principal can perform.
+ * entry is the "Update vormerken" wrench button — the reminder flag (plus an
+ * optional reason), deliberately the only write an embed principal can perform.
  */
 const EMBED_API_PATCH = [/^\/api\/v1\/recipes\/\d+\/needs-update$/];
 

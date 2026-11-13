@@ -122,6 +122,10 @@ export type DraftIngredient = {
   /** When true, the quantity is treated as portion-independent — changing a
    *  planned meal's servings does not rescale this ingredient. */
   fixedAmount: boolean;
+  /** Recipe "needs update" mark on this line (set from the shopping list).
+   *  Not editable here — only carried through the save so it survives.
+   *  Cleared together with the recipe's flag. */
+  needsUpdate?: boolean;
   /** Original source substring (after table pairing / conjunction splitting,
    *  before quantity-unit-notes extraction). Populated by the URL importer
    *  and the clipboard parser so the import-review UI can show the user what
@@ -523,6 +527,7 @@ export function recipeToDraft(recipe: RecipeView): DraftRecipe {
         // array, so the boolean is enough to reconstruct the grouping.
         isAlternative: i.alternativeForId != null,
         rawText: i.rawLine ?? undefined,
+        needsUpdate: i.needsUpdate,
       })),
     })),
   };
