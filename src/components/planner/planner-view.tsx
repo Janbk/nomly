@@ -116,6 +116,9 @@ export function PlannerView({
   // upcoming-ingredient-uses affordance); null when opened from the recipe
   // sidebar where no meal context exists.
   const [previewMealPlanId, setPreviewMealPlanId] = React.useState<number | null>(null);
+  // Date of that meal, so the preview can name concrete reminder days. Comes
+  // from the caller because a reminder may open a meal outside this range.
+  const [previewMealDate, setPreviewMealDate] = React.useState<string | null>(null);
   const [activeDrag, setActiveDrag] = React.useState<DragData | null>(null);
   // Default to the fly-back animation; flipped to `null` synchronously on a
   // valid drop so the overlay vanishes in place instead of animating home.
@@ -788,9 +791,10 @@ export function PlannerView({
                 onToggleLeftover={handleToggleLeftover}
                 onDuplicateLeftover={handleDuplicateLeftover}
                 onAddMeal={(date) => setAddingForDate(date)}
-                onPreviewRecipe={(id, mealPlanId) => {
+                onPreviewRecipe={(id, mealPlanId, mealDate) => {
                   setPreviewRecipeId(id);
                   setPreviewMealPlanId(mealPlanId);
+                  setPreviewMealDate(mealDate);
                 }}
                 dropTarget={dropTarget}
                 dragSourceSize={dragSourceSize}
@@ -811,6 +815,7 @@ export function PlannerView({
             onPreview={(id) => {
               setPreviewRecipeId(id);
               setPreviewMealPlanId(null);
+              setPreviewMealDate(null);
             }}
           />
         </div>
@@ -838,9 +843,11 @@ export function PlannerView({
       <RecipePreviewDialog
         recipeId={previewRecipeId}
         mealPlanId={previewMealPlanId}
+        mealDate={previewMealDate}
         onClose={() => {
           setPreviewRecipeId(null);
           setPreviewMealPlanId(null);
+          setPreviewMealDate(null);
         }}
       />
       <Dialog

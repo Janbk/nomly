@@ -30,7 +30,7 @@ type Props = {
   onToggleLeftover: (mealId: number, next: boolean) => void;
   onDuplicateLeftover: (mealId: number) => void;
   onAddMeal: (date: string) => void;
-  onPreviewRecipe: (recipeId: number, mealPlanId: number) => void;
+  onPreviewRecipe: (recipeId: number, mealPlanId: number, mealDate: string) => void;
   /** Hover state for the in-flight drag (see PlannerView). When set, this
    *  cell shows a phantom placeholder above or below the named meal. */
   dropTarget: { mealId: number; side: "above" | "below" } | null;
@@ -108,7 +108,7 @@ export function DayCell({
               <button
                 type="button"
                 className={className}
-                onClick={() => onPreviewRecipe(r.recipeId, r.mealPlanId)}
+                onClick={() => onPreviewRecipe(r.recipeId, r.mealPlanId, r.mealDate)}
                 title={`${r.time} — ${r.text} (für ${r.recipeTitle})`}
               >
                 {content}

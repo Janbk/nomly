@@ -36,10 +36,17 @@ type Props = {
    *  threads the meal id into the Vollansicht link so the full recipe page
    *  inherits the same context. */
   mealPlanId?: number | null;
+  /** Date of that meal — lets the reminder note show concrete days/times. */
+  mealDate?: string | null;
   onClose: () => void;
 };
 
-export function RecipePreviewDialog({ recipeId, mealPlanId = null, onClose }: Props) {
+export function RecipePreviewDialog({
+  recipeId,
+  mealPlanId = null,
+  mealDate = null,
+  onClose,
+}: Props) {
   const open = recipeId != null;
   return (
     <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : undefined)}>
@@ -52,6 +59,7 @@ export function RecipePreviewDialog({ recipeId, mealPlanId = null, onClose }: Pr
               key={`${recipeId}:${mealPlanId ?? "none"}`}
               recipeId={recipeId}
               mealPlanId={mealPlanId}
+              mealDate={mealDate}
             />
           ) : null}
         </DialogBody>
@@ -60,7 +68,15 @@ export function RecipePreviewDialog({ recipeId, mealPlanId = null, onClose }: Pr
   );
 }
 
-function RecipeBody({ recipeId, mealPlanId }: { recipeId: number; mealPlanId: number | null }) {
+function RecipeBody({
+  recipeId,
+  mealPlanId,
+  mealDate,
+}: {
+  recipeId: number;
+  mealPlanId: number | null;
+  mealDate: string | null;
+}) {
   const [recipe, setRecipe] = React.useState<RecipeView | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   // Bumped after the wrench toggle writes, to reload the reason hint and the
@@ -196,7 +212,7 @@ function RecipeBody({ recipeId, mealPlanId }: { recipeId: number; mealPlanId: nu
         </header>
 
         <NeedsUpdateHint recipe={recipe} />
-        <RecipeRemindersNote reminders={recipe.reminders} />
+        <RecipeRemindersNote reminders={recipe.reminders} mealDate={mealDate} />
 
         {descriptionHtml ? (
           <div
