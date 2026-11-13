@@ -10,6 +10,8 @@ import { OfflineAwareLink } from "./offline-aware-link";
 export type NeedsUpdateRecipe = {
   id: number;
   title: string;
+  /** The reason given when flagging, if any (one per line). */
+  note: string | null;
 };
 
 const MAX_VISIBLE = 5;
@@ -57,9 +59,16 @@ export function NeedsUpdateCard({
                 <li key={recipe.id}>
                   <OfflineAwareLink
                     href={`/rezepte/${recipe.id}`}
-                    className="flex min-h-11 min-w-0 items-center rounded-md px-2 -mx-2 text-sm font-medium text-[var(--color-fg)] hover:bg-[var(--color-muted)]/50 hover:underline"
+                    className="flex min-h-11 min-w-0 flex-col justify-center rounded-md px-2 -mx-2 text-sm hover:bg-[var(--color-muted)]/50"
                   >
-                    <span className="truncate">{recipe.title}</span>
+                    <span className="truncate font-medium text-[var(--color-fg)] hover:underline">
+                      {recipe.title}
+                    </span>
+                    {recipe.note ? (
+                      <span className="truncate text-xs text-[var(--color-muted-fg)]">
+                        {recipe.note.replace(/\n/g, " · ")}
+                      </span>
+                    ) : null}
                   </OfflineAwareLink>
                 </li>
               ))}

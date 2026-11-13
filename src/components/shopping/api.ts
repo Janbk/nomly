@@ -365,18 +365,30 @@ export async function addMealsToList(
   };
 }
 
+/** One recipe to flag from a shopping-list row, with the recipe lines that
+ *  row came from (they get marked in the recipe view). */
+export type RecipeUpdateMark = { recipeId: number; recipeIngredientIds: number[] };
+
 /**
  * Flag one or more recipes as "needs update" (one-way). Used from the
  * shopping-list item menu when the user notices a recipe needs a fix while
- * shopping. Issues one PATCH per recipe against the existing endpoint.
+ * shopping. The optional reason goes to every flagged recipe. Issues one
+ * PATCH per recipe against the existing endpoint.
  */
-export async function markRecipesNeedUpdate(recipeIds: number[]): Promise<void> {
+export async function markRecipesNeedUpdate(
+  marks: RecipeUpdateMark[],
+  note: string,
+): Promise<void> {
   await Promise.all(
-    recipeIds.map(async (id) => {
-      const res = await fetch(`/api/v1/recipes/${id}/needs-update`, {
+    marks.map(async ({ recipeId, recipeIngredientIds }) => {
+      const res = await fetch(`/api/v1/recipes/${recipeId}/needs-update`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ needsUpdate: true }),
+        body: JSON.stringify({
+          needsUpdate: true,
+          note: note || null,
+          recipeIngredientIds,
+        }),
       });
       await jsonOrThrow(res);
     }),

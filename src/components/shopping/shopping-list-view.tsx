@@ -636,7 +636,6 @@ export function ShoppingListView({
         onDelete={onDelete}
         onToggleUnavailable={onToggleUnavailable}
         onSkipToday={(i, storeId) => onSetSkipped(i, storeId, true)}
-        onMarkRecipesNeedUpdate={(ids) => void apiMarkRecipesNeedUpdate(ids)}
         onRequestMarkRecipeUpdate={setMarkUpdateItem}
         disabledOffline={disabledOffline}
         trailingAction={trailingAction}
@@ -962,7 +961,11 @@ export function ShoppingListView({
       <MarkRecipeUpdateDialog
         item={markUpdateItem}
         onClose={() => setMarkUpdateItem(null)}
-        onConfirm={(ids) => void apiMarkRecipesNeedUpdate(ids)}
+        onConfirm={(marks, note) =>
+          // Refetch so the rows' wrench markers show the new flag.
+          void apiMarkRecipesNeedUpdate(marks, note)
+            .then(() => refetchRemote("event"))
+        }
       />
       <ClearListDialog
         open={clearOpen}

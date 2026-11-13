@@ -33,7 +33,11 @@ export function RecipeCard({ recipe }: Props) {
       {recipe.needsUpdate ? (
         <span
           className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded-full bg-[var(--color-warning)] px-2 py-0.5 text-[10px] font-medium text-white shadow-sm"
-          title="Für ein Update vorgemerkt"
+          title={
+            recipe.needsUpdateNote
+              ? `Für ein Update vorgemerkt: ${recipe.needsUpdateNote}`
+              : "Für ein Update vorgemerkt"
+          }
         >
           <Wrench className="size-3" />
           Update nötig

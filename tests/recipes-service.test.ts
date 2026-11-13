@@ -833,3 +833,87 @@ describe("needsUpdate flag + filter", () => {
     expect(out).toEqual([ids.tomatensuppe]);
   });
 });
+
+describe("needs-update reason + flagged ingredient lines", () => {
+  let ids: Ids;
+  beforeAll(async () => {
+    ids = await seed();
+  });
+
+  async function lines(recipeId: number) {
+    const { getRecipe } = await import("@/lib/recipes/service");
+    return getRecipe(recipeId)!.sections.flatMap((s) => s.ingredients);
+  }
+
+  it("stores the reason and marks only the given lines of this recipe", async () => {
+    const { setRecipeNeedsUpdate, getRecipe } = await import("@/lib/recipes/service");
+    const [tomate] = await lines(ids.tomatensuppe);
+    const [foreign] = await lines(ids.apfelkuchen);
+    expect(
+      setRecipeNeedsUpdate(ids.tomatensuppe, true, {
+        note: "  Menge stimmt nicht  ",
+        recipeIngredientIds: [tomate.id, foreign.id],
+      }),
+    ).toBe(true);
+    const view = getRecipe(ids.tomatensuppe)!;
+    expect(view.needsUpdate).toBe(true);
+    expect(view.needsUpdateNote).toBe("Menge stimmt nicht");
+    expect(view.sections[0].ingredients.map((i) => i.needsUpdate)).toEqual([true, false]);
+    // A line id from another recipe is ignored.
+    expect((await lines(ids.apfelkuchen)).some((i) => i.needsUpdate)).toBe(false);
+  });
+
+  it("appends a further reason, skips blanks and repeats", async () => {
+    const { setRecipeNeedsUpdate, getRecipe, listRecipes } = await import(
+      "@/lib/recipes/service"
+    );
+    setRecipeNeedsUpdate(ids.tomatensuppe, true, { note: "Foto fehlt" });
+    setRecipeNeedsUpdate(ids.tomatensuppe, true, { note: "   " });
+    setRecipeNeedsUpdate(ids.tomatensuppe, true, { note: "Foto fehlt" });
+    expect(getRecipe(ids.tomatensuppe)!.needsUpdateNote).toBe(
+      "Menge stimmt nicht\nFoto fehlt",
+    );
+    const listed = listRecipes({ needsUpdate: true }).find((r) => r.id === ids.tomatensuppe);
+    expect(listed?.needsUpdateNote).toBe("Menge stimmt nicht\nFoto fehlt");
+  });
+
+  it("an edit keeps the flagged line when the editor sends it back", async () => {
+    const { getRecipe, updateRecipe } = await import("@/lib/recipes/service");
+    const view = getRecipe(ids.tomatensuppe)!;
+    updateRecipe(ids.tomatensuppe, {
+      title: view.title,
+      description: view.description,
+      servings: view.servings,
+      prepTimeMin: view.prepTimeMin,
+      cookTimeMin: view.cookTimeMin,
+      sourceUrl: view.sourceUrl,
+      photoPath: view.photoPath,
+      tags: view.tags,
+      sections: view.sections.map((s) => ({
+        title: s.title,
+        instructions: s.instructions,
+        ingredients: s.ingredients.map((i) => ({
+          ingredientName: i.ingredientName,
+          ingredientId: i.ingredientId,
+          quantity: i.quantity,
+          unitId: i.unitId,
+          displayUnit: null,
+          notes: i.notes,
+          isOptional: i.isOptional,
+          fixedAmount: i.fixedAmount,
+          needsUpdate: i.needsUpdate,
+        })),
+      })),
+    });
+    expect((await lines(ids.tomatensuppe)).map((i) => i.needsUpdate)).toEqual([true, false]);
+  });
+
+  it("clearing drops flag, reason and every line mark", async () => {
+    const { setRecipeNeedsUpdate, getRecipe } = await import("@/lib/recipes/service");
+    expect(setRecipeNeedsUpdate(ids.tomatensuppe, false)).toBe(true);
+    const view = getRecipe(ids.tomatensuppe)!;
+    expect(view.needsUpdate).toBe(false);
+    expect(view.needsUpdateNote).toBeNull();
+    expect(view.sections[0].ingredients.some((i) => i.needsUpdate)).toBe(false);
+  });
+});

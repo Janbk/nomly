@@ -281,4 +281,23 @@ describe("buildReparsedRecipeInput", () => {
     expect(skipped).toBe(1);
     expect(input.sections[0].ingredients.map((x) => x.ingredientName)).toEqual(["Salz"]);
   });
-})
+
+  it("hands a replaced group's needs-update mark to its new rows, keeps others'", () => {
+    const view = viewWith([
+      viewRow({ id: 100, ingredientName: "Mehl", rawLine: "Mehl", sortOrder: 0, needsUpdate: true }),
+      viewRow({ id: 101, ingredientName: "Zucker", rawLine: "Zucker", sortOrder: 1, needsUpdate: true }),
+      viewRow({ id: 102, ingredientName: "Salz", rawLine: "Salz", sortOrder: 2 }),
+    ]);
+    const { input } = buildReparsedRecipeInput(view, [
+      { replaceRowIds: [100], rows: [newRow({ ingredientName: "Weizenmehl" })] },
+      { replaceRowIds: [102], rows: [newRow({ ingredientName: "Meersalz" })] },
+    ]);
+    expect(
+      input.sections[0].ingredients.map((x) => [x.ingredientName, !!x.needsUpdate]),
+    ).toEqual([
+      ["Weizenmehl", true],
+      ["Zucker", true],
+      ["Meersalz", false],
+    ]);
+  });
+});

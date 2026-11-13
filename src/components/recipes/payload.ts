@@ -139,5 +139,6 @@ export function ingredientToPayload(ing: DraftIngredient) {
     // Round-trip the source line so the resulting row stays re-parseable.
     rawLine: ing.rawText ?? null,
     isAlternative: ing.isAlternative,
+    needsUpdate: ing.needsUpdate ?? false,
   };
 }

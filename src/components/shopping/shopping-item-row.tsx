@@ -53,11 +53,8 @@ type Props = {
   /** "Gab es hier heute nicht": hides the open item at this store until
    *  tomorrow while it stays on the general list. */
   onSkipToday: (item: ShoppingItemView, supermarketId: number) => Promise<void>;
-  /** Marks the given recipes as "needs update" (one-way). Used directly when
-   *  the item has exactly one associated recipe. */
-  onMarkRecipesNeedUpdate: (recipeIds: number[]) => void;
-  /** Opens the recipe-picker dialog to mark a subset — used when the item has
-   *  more than one associated recipe. */
+  /** Opens the "Update vormerken" dialog (optional reason; recipe picker when
+   *  the item comes from more than one recipe). */
   onRequestMarkRecipeUpdate: (item: ShoppingItemView) => void;
   /** When true, actions that need the server right away (edit, delete, …) are
    *  disabled. Check-off, skip and unavailable go through the offline queue. */
@@ -79,7 +76,6 @@ export function ShoppingItemRow({
   onDelete,
   onToggleUnavailable,
   onSkipToday,
-  onMarkRecipesNeedUpdate,
   onRequestMarkRecipeUpdate,
   disabledOffline = false,
   trailingAction,
@@ -302,8 +298,7 @@ export function ShoppingItemRow({
               <MarkUpdateMenuEntry
                 sources={item.sources}
                 disabled={disabledOffline}
-                onMarkOne={(recipeId) => onMarkRecipesNeedUpdate([recipeId])}
-                onRequestPick={() => onRequestMarkRecipeUpdate(item)}
+                onSelect={() => onRequestMarkRecipeUpdate(item)}
               />
               {!item.checked ? (
                 <DropdownMenuItem
@@ -606,29 +601,21 @@ export function uniqueRecipes(sources: ShoppingItemSourceView[]): ItemRecipe[] {
 
 /**
  * "Update vormerken" menu entry. Hidden when the item has no live recipe.
- * One recipe → marks it directly; several → defers to the picker dialog so
- * the user chooses which to flag.
+ * Opens the dialog that asks for the optional reason (and, with several
+ * recipes, which of them to flag).
  */
 function MarkUpdateMenuEntry({
   sources,
   disabled,
-  onMarkOne,
-  onRequestPick,
+  onSelect,
 }: {
   sources: ShoppingItemSourceView[];
   disabled: boolean;
-  onMarkOne: (recipeId: number) => void;
-  onRequestPick: () => void;
+  onSelect: () => void;
 }) {
-  const unique = uniqueRecipes(sources);
-  if (unique.length === 0) return null;
+  if (uniqueRecipes(sources).length === 0) return null;
   return (
-    <DropdownMenuItem
-      disabled={disabled}
-      onClick={() =>
-        unique.length === 1 ? onMarkOne(unique[0].recipeId) : onRequestPick()
-      }
-    >
+    <DropdownMenuItem disabled={disabled} onClick={onSelect}>
       <Wrench className="mr-2 size-4" />
       Update vormerken
     </DropdownMenuItem>

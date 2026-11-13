@@ -683,6 +683,7 @@ function viewRowToInput(
     fixedAmount: v.fixedAmount,
     rawLine: v.rawLine,
     isAlternative: v.alternativeForId != null,
+    needsUpdate: v.needsUpdate,
   };
 }
 
@@ -703,6 +704,13 @@ export function buildReparsedRecipeInput(
   for (const rep of replacements) {
     for (const id of rep.replaceRowIds) byRowId.set(id, rep);
   }
+  // A replaced group that carried a "needs update" mark hands it to its new
+  // rows, so a reparse doesn't silently drop the reminder.
+  const flaggedRowIds = new Set(
+    view.sections.flatMap((s) =>
+      s.ingredients.filter((i) => i.needsUpdate).map((i) => i.id),
+    ),
+  );
   const applied = new Set<ReparseReplacement>();
 
   const sections = view.sections.map((section) => {
@@ -713,7 +721,10 @@ export function buildReparsedRecipeInput(
         // First row of this group we encounter → emit the replacement once.
         if (!applied.has(rep)) {
           applied.add(rep);
-          for (const r of rep.rows) ingredients.push(r);
+          const flagged = rep.replaceRowIds.some((id) => flaggedRowIds.has(id));
+          for (const r of rep.rows) {
+            ingredients.push(flagged ? { ...r, needsUpdate: true } : r);
+          }
         }
         // Skip the current row either way (it belongs to a replaced group).
         continue;

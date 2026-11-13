@@ -30,6 +30,13 @@ export const recipe = sqliteTable("recipe", {
   needsUpdate: integer("needs_update", { mode: "boolean" })
     .notNull()
     .default(false),
+  /**
+   * Optional free-text reason the user gave when flagging the recipe ("Mehl-
+   * menge stimmt nicht"). Shown as a hint at the top of the recipe. Several
+   * flaggings (e.g. from different shopping-list rows) append, one per line.
+   * Cleared together with {@link needsUpdate}.
+   */
+  needsUpdateNote: text("needs_update_note"),
   createdAt: integer("created_at").notNull().default(now),
   updatedAt: integer("updated_at").notNull().default(now),
 });
@@ -358,6 +365,16 @@ export const recipeIngredient = sqliteTable(
      */
     rawLine: text("raw_line"),
     sortOrder: integer("sort_order").notNull().default(0),
+    /**
+     * Part of the recipe's "needs update" reminder: this line is the one the
+     * user flagged the recipe through (the shopping-list row it came from).
+     * The recipe view highlights it. Rows are rewritten on every save, so the
+     * editor and bulk reparse carry the flag through; clearing the recipe's
+     * flag clears all of these.
+     */
+    needsUpdate: integer("needs_update", { mode: "boolean" })
+      .notNull()
+      .default(false),
     /**
      * Self-referencing FK: when non-null, this row is an ALTERNATIVE for
      * the recipe_ingredient row with the given id. Alternatives are always
