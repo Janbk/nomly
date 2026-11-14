@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
@@ -82,6 +83,21 @@ function seedShoppingList(dbPath: string): void {
   }
 }
 
+/** The embed-scoped token the /embed/** specs pass as `?k=`. */
+function seedEmbedToken(dbPath: string): void {
+  const db = new Database(dbPath);
+  try {
+    db.prepare(
+      "INSERT INTO api_token (name, token_hash, scope) VALUES (?, ?, 'embed')",
+    ).run(
+      "e2e-embed",
+      createHash("sha256").update(E2E_CONFIG.embedToken).digest("hex"),
+    );
+  } finally {
+    db.close();
+  }
+}
+
 export default async function globalSetup(): Promise<void> {
   const dbPath = resolve(E2E_CONFIG.databaseUrl);
   for (const suffix of ["", "-shm", "-wal"]) {
@@ -93,5 +109,6 @@ export default async function globalSetup(): Promise<void> {
   run("scripts/migrate.mts", env);
   run("scripts/seed.ts", env);
   seedShoppingList(dbPath);
+  seedEmbedToken(dbPath);
   await mintStorageState();
 }

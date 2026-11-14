@@ -27,6 +27,17 @@ type Props = {
   onSaved: (items: ShoppingItemView[]) => void;
 };
 
+type BodyProps = Omit<Props, "open"> & {
+  /**
+   * Rendered outside a Radix Dialog (the Home Assistant embed page): plain
+   * heading elements instead of DialogTitle/Description, which need the
+   * Dialog context, and no "Abbrechen" button — the HA popup closes itself.
+   */
+  embedded?: boolean;
+  /** Embedded only: hide the heading (the HA popup header already shows it). */
+  showTitle?: boolean;
+};
+
 function parseInput(raw: string): number | null {
   const trimmed = raw.trim().replace(",", ".");
   if (trimmed.length === 0) return null;
@@ -56,11 +67,15 @@ export function StockCheckDialog({ open, items, onClose, onSaved }: Props) {
   );
 }
 
-function StockCheckBody({
+export function StockCheckBody({
   items,
   onClose,
   onSaved,
-}: Omit<Props, "open">) {
+  embedded = false,
+  showTitle = true,
+}: BodyProps) {
+  const Title = embedded ? "h1" : DialogTitle;
+  const Description = embedded ? "p" : DialogDescription;
   // Stable snapshot for the lifetime of the dialog so inputs don't reshuffle
   // when a background realtime update arrives. Only still-to-buy items are
   // relevant: checked-off ones are already handled, so there's nothing to
@@ -79,6 +94,7 @@ function StockCheckBody({
   // removes those on save, so the row shows it up front (debounced dry-run).
   const [covered, setCovered] = React.useState<Set<number>>(new Set());
   const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (rows.length === 0) return;
@@ -106,6 +122,7 @@ function StockCheckBody({
 
   async function commit() {
     setSaving(true);
+    setSaveError(null);
     try {
       const entries: Array<{
         itemId: number;
@@ -134,6 +151,9 @@ function StockCheckBody({
       }
       const updated = await setStockBatch(entries);
       onSaved(updated);
+    } catch {
+      // Keep the form (and the user's inputs) so they can retry.
+      setSaveError("Speichern fehlgeschlagen. Bitte erneut versuchen.");
     } finally {
       setSaving(false);
     }
@@ -142,11 +162,13 @@ function StockCheckBody({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Auf Lager prüfen</DialogTitle>
-        <DialogDescription>
+        {showTitle ? (
+          <Title className="text-lg font-semibold leading-tight">Auf Lager prüfen</Title>
+        ) : null}
+        <Description className="text-sm text-[var(--color-muted-fg)]">
           Trag ein, was du schon zu Hause hast — es wird vom Gesamtbedarf
           derselben Einheit abgezogen.
-        </DialogDescription>
+        </Description>
       </DialogHeader>
       <DialogBody>
         {rows.length === 0 ? (
@@ -235,9 +257,19 @@ function StockCheckBody({
         )}
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={onClose} disabled={saving}>
-          Abbrechen
-        </Button>
+        {saveError ? (
+          <p
+            role="alert"
+            className="text-sm text-[var(--color-danger)] sm:mr-auto sm:self-center"
+          >
+            {saveError}
+          </p>
+        ) : null}
+        {embedded ? null : (
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
+            Abbrechen
+          </Button>
+        )}
         <Button onClick={commit} disabled={saving}>
           {saving ? "Speichert…" : "Speichern"}
         </Button>

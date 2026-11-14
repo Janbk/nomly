@@ -19,8 +19,9 @@ Mint two tokens (run inside the prod container, against the live DB):
 docker compose exec nomly \
   node scripts/create-api-token.mts --name home-assistant
 
-# Embed token — only the recipe-iframe allow-list (reads + the "Update
-# vormerken" toggle). Goes in the dashboard iframe URL.
+# Embed token — only the embed allow-list (recipe reads, the "Update
+# vormerken" toggle and the "Auf Lager prüfen" form). Goes in the dashboard
+# iframe URL.
 docker compose exec nomly \
   node scripts/create-api-token.mts --name home-assistant-embed --scope embed
 ```
@@ -37,8 +38,9 @@ nomly_bearer: "Bearer <full token>"
 The **embed** token is used in a Lovelace dashboard card (the iframe URL).
 Lovelace can't read `secrets.yaml`, so paste the embed token directly into the
 card config wherever you see `?k=<embed token>` below. The token is confined to
-the embed allow-list — recipe reads plus the harmless "Update vormerken" flag
-toggle — so that's fine.
+the embed allow-list — recipe reads, the harmless "Update vormerken" flag
+toggle and the stock check (`/embed/lager`, sets "already at home" amounts on
+shopping-list items) — so that's fine.
 
 ### Allow framing
 
@@ -633,6 +635,8 @@ Notes:
 | GET | `/api/v1/shopping/store-availability` | Per-store still-needed count. |
 | GET | `/api/v1/shopping/today-meal-status` | Today's meals still needing shopping + per-shop coverage. |
 | GET | `/embed/rezepte/<id>?k=<embed token>` | Chrome-less recipe view for the iframe. Includes the "Update vormerken" toggle. |
-| PATCH | `/api/v1/recipes/<id>/needs-update` | Toggle the "Update vormerken" flag — the embed scope's only write. |
+| PATCH | `/api/v1/recipes/<id>/needs-update` | Toggle the "Update vormerken" flag (embed scope may call it). |
+| GET | `/embed/lager?k=<embed token>[&title=0]` | Chrome-less "Auf Lager prüfen" (stock check) form for an HA popup. |
+| POST | `/api/v1/shopping/stock`, `/api/v1/shopping/stock/preview` | Stock-check save and coverage dry-run (embed scope may call them). |
 | GET | `/einkauf?supermarket=<id>` | Shopping list with a store preselected (persists as the default). |
 | GET | `/einkauf?supermarket=all` | Shopping list with the store filter reset to "Alle Supermärkte" (clears the stored default). |
