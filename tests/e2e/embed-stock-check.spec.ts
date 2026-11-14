@@ -34,6 +34,9 @@ test("stock check embed loads, saves and keeps the footer in view", async ({
   const input = page.getByRole("textbox", { name: /^Auf Lager: / }).first();
   const label = await input.getAttribute("aria-label");
   await input.fill("0,5");
+  // The touch stepper next to the field.
+  await page.getByRole("button", { name: label!.replace("Auf Lager", "Mehr auf Lager"), exact: true }).click();
+  await expect(input).toHaveValue("1,5");
   await save.click();
 
   await expect(page.getByRole("status")).toHaveText("Gespeichert.");
@@ -42,7 +45,7 @@ test("stock check embed loads, saves and keeps the footer in view", async ({
   // Persisted: a fresh load (cookie only, no token) shows the saved amount.
   await page.goto("/embed/lager");
   await expect(page.getByRole("heading", { name: "Auf Lager prüfen" })).toBeVisible();
-  await expect(page.getByRole("textbox", { name: label! })).toHaveValue("0.5");
+  await expect(page.getByRole("textbox", { name: label!, exact: true })).toHaveValue("1.5");
 
   // The embed cookie still only reaches the allow-list.
   expect((await page.request.get("/api/v1/shopping")).status()).toBe(403);
