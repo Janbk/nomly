@@ -36,7 +36,7 @@ export function FoldedAltChips({
           title={titleFor(f.label)}
           className={cn(
             "inline-flex items-center gap-1 rounded-full border border-dashed",
-            "border-muted-foreground/40 px-2 py-0.5 text-xs text-muted-foreground",
+            "border-muted-foreground/40 px-2 py-0.5 text-xs text-muted-foreground pointer-coarse:px-3 pointer-coarse:py-1.5",
             "transition-colors hover:border-foreground/60 hover:text-foreground",
           )}
         >

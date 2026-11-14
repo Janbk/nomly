@@ -249,3 +249,17 @@ summary {
   border-radius: 50%;
   background: var(--color-accent);
 }
+
+/* iOS Safari zooms the whole page into any focused form field whose text is
+   smaller than 16px — and never zooms back out, so every tap into an input
+   leaves the page half off-screen. On touch phones, give text fields (and the
+   CodeMirror markdown editor) 16px. Unlayered so it beats the `text-sm`
+   utilities; desktop keeps the compact 14px. */
+@media (pointer: coarse) and (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select,
+  .cm-editor .cm-content {
+    font-size: 16px !important;
+  }
+}

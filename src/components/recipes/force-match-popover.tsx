@@ -102,7 +102,7 @@ export function ForceMatchPopover({ typedName, onPick }: Props) {
         <button
           type="button"
           className={cn(
-            "inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--color-border)] px-2 py-0.5 text-xs text-[var(--color-muted-fg)] transition-colors",
+            "inline-flex items-center gap-1 rounded-full border border-dashed border-[var(--color-border)] px-2 py-0.5 text-xs text-[var(--color-muted-fg)] transition-colors pointer-coarse:px-3 pointer-coarse:py-1.5",
             "hover:bg-[var(--color-muted)]",
           )}
           title="Mit einer beliebigen Zutat verknüpfen (Force-Match)."
@@ -115,7 +115,8 @@ export function ForceMatchPopover({ typedName, onPick }: Props) {
         <Popover.Content
           align="start"
           sideOffset={4}
-          className="z-50 w-72 rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-bg)] p-2 shadow-md"
+          collisionPadding={8}
+          className="z-50 w-72 max-w-[calc(100vw-1rem)] rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-bg)] p-2 shadow-md"
         >
           <div className="relative">
             <Search className="pointer-events-none absolute left-2 top-1/2 size-4 -translate-y-1/2 text-[var(--color-muted-fg)]" />

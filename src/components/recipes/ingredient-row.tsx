@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   ArrowLeftRight,
   ArrowUp,
+  ChevronDown,
   CircleCheck,
   CircleHelp,
   CornerDownRight,
@@ -49,6 +50,7 @@ import {
 } from "./payload";
 import { loadQuantifiers } from "./quantifier-list";
 import { ForceMatchPopover } from "./force-match-popover";
+import { IngredientRowMenu } from "./ingredient-row-menu";
 import { FoldedAltChips } from "./folded-alt-chips";
 
 /**
@@ -128,6 +130,11 @@ type Props = {
    *  inside the same draggable container and don't have their own grip. */
   dragAttributes?: DraggableAttributes;
   dragListeners?: DraggableSyntheticListeners;
+  /** Insert an empty row above this one / split the section here. On desktop
+   *  these live on the divider between groups; on a phone they are offered in
+   *  the row menu instead (the divider buttons are too small to hit). */
+  onInsertAbove?: () => void;
+  onSplitAbove?: () => void;
   /** "staple" drops the recipe-only chrome (drag handle, optional toggle,
    *  amount lock, alternatives) but keeps the full ingredient-matching flow.
    *  Defaults to the recipe layout. */
@@ -148,6 +155,8 @@ export function IngredientRow({
   onAddMain,
   dragAttributes,
   dragListeners,
+  onInsertAbove,
+  onSplitAbove,
   variant = "recipe",
 }: Props) {
   const [defaultUnits, setDefaultUnits] = React.useState<SelectSearchItem[]>([]);
@@ -166,6 +175,11 @@ export function IngredientRow({
   );
 
   const [reparsing, setReparsing] = React.useState(false);
+  function runReparse() {
+    if (!onReparse || reparsing) return;
+    setReparsing(true);
+    void Promise.resolve(onReparse()).finally(() => setReparsing(false));
+  }
 
   // Live candidate matches for the typed text. Debounced + abortable so a
   // slow response from "tom" can't overwrite the result for "tomatoes".
@@ -338,6 +352,18 @@ export function IngredientRow({
   // quantifier. Surfaced the same way as a range error (aria-invalid + inline
   // hint) and blocks save in the form (mirrors rangeError there).
   const rowAmountError = amountInputError(value, quantifiers);
+  const hasError =
+    rowAmountError ||
+    rowRangeError ||
+    value.importAnnotation?.unitState === "unresolved";
+  // Phone only: whether the row's editor is open below its summary line.
+  // Rows start closed so a long list stays scannable — except a blank row
+  // (just added, wants typing) and rows with a problem, which are forced open
+  // so the user sees what to fix. Desktop ignores this (always open).
+  const [expanded, setExpanded] = React.useState(
+    () => value.name.trim().length === 0 && value.quantity.trim().length === 0,
+  );
+  const open = expanded || hasError;
 
   /**
    * Resolve the amount field against the quantifier list on every keystroke:
@@ -364,6 +390,14 @@ export function IngredientRow({
       return;
     }
     onChange({ ...value, quantity: text, quantifierId: null, quantifierSource: null });
+  }
+
+  function toggleOptional() {
+    onChange({ ...value, isOptional: !value.isOptional });
+  }
+
+  function toggleFixedAmount() {
+    onChange({ ...value, fixedAmount: !value.fixedAmount });
   }
 
   function toggleRange() {
@@ -641,7 +675,7 @@ export function IngredientRow({
         // the row's content always sit ≥12px clear of the divider above
         // and below — collapsing the padding made the hint touch the
         // border between rows.
-        "flex items-start gap-2 py-3",
+        "flex items-start gap-2 py-1.5 md:py-3",
       )}
     >
       {value.isAlternative ? (
@@ -659,19 +693,19 @@ export function IngredientRow({
               {...(dragListeners ?? {})}
               aria-label="Alternative per Drag-and-Drop umordnen"
               title="Ziehen, um die Reihenfolge der Alternativen zu ändern"
-              className="mt-1.5 inline-flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] active:cursor-grabbing"
+              className="mt-1.5 inline-flex h-8 w-6 shrink-0 cursor-grab touch-none pointer-coarse:mt-0 pointer-coarse:h-11 items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] active:cursor-grabbing"
             >
               <GripVertical className="size-4" />
             </button>
           ) : (
             <span
               aria-hidden="true"
-              className="mt-1.5 inline-flex h-8 w-6 shrink-0"
+              className="mt-1.5 hidden h-8 w-6 shrink-0 md:inline-flex"
             />
           )}
           <span
             aria-hidden="true"
-            className="mt-1.5 inline-flex h-8 w-6 shrink-0 items-center justify-center text-[var(--color-muted-fg)]"
+            className="mt-1.5 inline-flex h-8 w-6 shrink-0 items-center justify-center text-[var(--color-muted-fg)] pointer-coarse:mt-0 pointer-coarse:h-11"
           >
             <CornerDownRight className="size-4" />
           </span>
@@ -683,12 +717,66 @@ export function IngredientRow({
           {...(dragListeners ?? {})}
           aria-label="Zutat per Drag-and-Drop verschieben"
           title="Ziehen, um die Zutatgruppe umzuordnen oder in einen anderen Abschnitt zu verschieben"
-          className="mt-1.5 inline-flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] active:cursor-grabbing"
+          className="mt-1.5 inline-flex h-8 w-6 shrink-0 cursor-grab touch-none pointer-coarse:mt-0 pointer-coarse:h-11 items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] active:cursor-grabbing"
         >
           <GripVertical className="size-4" />
         </button>
       )}
       <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+        {/* Phone header: one summary line ("200 g Mehl, gesiebt") that
+            expands the editor below, plus the row-actions menu — so a long
+            ingredient list stays scannable and every action is one tap away
+            without opening the row. Hidden on desktop, where the editor is
+            always open. */}
+        <div className="flex items-center gap-1 md:hidden">
+          <button
+            type="button"
+            onClick={() => setExpanded(!open)}
+            aria-expanded={open}
+            aria-controls={`ingredient-editor-${value.uid}`}
+            className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-md text-left text-sm"
+          >
+            <IngredientSummary value={value} hasError={hasError} />
+            <ChevronDown
+              aria-hidden
+              className={cn(
+                "size-4 shrink-0 text-[var(--color-muted-fg)] transition-transform",
+                open && "rotate-180",
+              )}
+            />
+          </button>
+          {value.unassigned ? null : (
+            <IngredientRowMenu
+              isAlternative={value.isAlternative}
+              isOptional={value.isOptional}
+              fixedAmount={value.fixedAmount}
+              isRange={value.isRange}
+              amountDisabled={amountDisabled}
+              onToggleOptional={toggleOptional}
+              onToggleFixedAmount={toggleFixedAmount}
+              onToggleRange={() => {
+                toggleRange();
+                setExpanded(true);
+              }}
+              onToggleFreeText={value.isAlternative ? undefined : toggleFreeText}
+              onAddAlternative={value.isAlternative ? undefined : onAddAlternative}
+              onDemote={value.isAlternative ? undefined : onDemote}
+              onPromote={value.isAlternative ? onPromote : undefined}
+              onDetach={value.isAlternative ? onDetach : undefined}
+              onReparse={value.rawText && onReparse ? runReparse : undefined}
+              onUseOriginalAsFreeText={
+                value.rawText ? useOriginalAsFreeText : undefined
+              }
+              onInsertAbove={onInsertAbove}
+              onSplitAbove={onSplitAbove}
+              onRemove={onRemove}
+            />
+          )}
+        </div>
+        <div
+          id={`ingredient-editor-${value.uid}`}
+          className={cn("flex flex-col gap-1.5", !open && "max-md:hidden")}
+        >
         {value.rawText ? (
           // Boxed, indented (it sits inside the fields column) original line:
           // the source text plus two actions — reparse → linked, or drop the
@@ -706,15 +794,9 @@ export function IngredientRow({
             {onReparse ? (
               <button
                 type="button"
-                onClick={() => {
-                  if (reparsing) return;
-                  setReparsing(true);
-                  void Promise.resolve(onReparse()).finally(() =>
-                    setReparsing(false),
-                  );
-                }}
+                onClick={runReparse}
                 disabled={reparsing}
-                className="shrink-0 rounded p-1 text-[var(--color-muted-fg)] hover:bg-[var(--color-bg)] hover:text-[var(--color-fg)] disabled:opacity-50"
+                className="shrink-0 rounded p-2 md:p-1text-[var(--color-muted-fg)] hover:bg-[var(--color-bg)] hover:text-[var(--color-fg)] disabled:opacity-50"
                 title="Neu parsen und verknüpfen (verwirft manuelle Änderungen dieser Zeile)."
                 aria-label="Aus Originalzeile neu parsen"
               >
@@ -726,7 +808,7 @@ export function IngredientRow({
             <button
               type="button"
               onClick={useOriginalAsFreeText}
-              className="shrink-0 rounded p-1 text-[var(--color-muted-fg)] hover:bg-[var(--color-bg)] hover:text-[var(--color-fg)]"
+              className="shrink-0 rounded p-2 md:p-1text-[var(--color-muted-fg)] hover:bg-[var(--color-bg)] hover:text-[var(--color-fg)]"
               title="Originaltext unverändert als Freitext übernehmen (ohne Artikel)."
               aria-label="Originaltext als Freitext übernehmen"
             >
@@ -751,7 +833,7 @@ export function IngredientRow({
               type="button"
               onClick={onAddMain}
               title="Eine weitere Zutat aus dieser Originalzeile hinzufügen (eigene Hauptzutat)."
-              className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/40 px-2 py-0.5 text-xs text-muted-foreground transition-colors hover:border-foreground/60 hover:text-foreground"
+              className="inline-flex items-center gap-1 rounded-full border border-dashed border-muted-foreground/40 px-2 py-0.5 text-xs text-muted-foreground transition-colors pointer-coarse:px-3 pointer-coarse:py-1.5 hover:border-foreground/60 hover:text-foreground"
             >
               <Plus className="size-3" />
               Zutat
@@ -792,27 +874,24 @@ export function IngredientRow({
               aria-label="Freie Angabe"
               className="min-w-0 flex-1"
             />
-            <FreeTextToggle
-              active
-              onToggle={toggleFreeText}
-              className="h-9 w-9 md:h-11 md:w-11"
-            />
+            <FreeTextToggle active onToggle={toggleFreeText} />
             <Button
               variant="ghost"
               size="icon"
               onClick={onRemove}
               aria-label="Zutat entfernen"
-              className="h-9 w-9 md:h-11 md:w-11"
             >
               <Trash2 className="size-4" />
             </Button>
           </div>
         ) : (
-          <div className="grid items-start gap-2 grid-cols-[auto_minmax(0,1fr)_auto_auto_auto_auto_auto_auto] md:grid-cols-[auto_8rem_minmax(0,1fr)_minmax(0,1fr)_auto_auto_auto_auto_auto_auto]">
-            {/* Mobile flow: [Qty | Unit] · [Name] · [Notes | actions]. Desktop
-                (md+) is a single row; the trailing actions end with the
-                free-text toggle and delete. The amount cell holds an optional
-                "von" (low) input, the (high) amount, and the range toggle. */}
+          <div className="grid items-start gap-2 grid-cols-[auto_minmax(0,1fr)] md:grid-cols-[auto_8rem_minmax(0,1fr)_minmax(0,1fr)_auto_auto_auto_auto_auto_auto]">
+            {/* Phone: [Menge | Einheit] · [Zutat] · [Notiz] · candidate pills —
+                every field gets the full width; the row actions live in the ⋮
+                menu of the summary header above. Desktop (md+): one line, fields followed by the icon
+                actions (free-text toggle and delete last), pills underneath.
+                The amount cell holds an optional "von" (low) input, the (high)
+                amount, and — on desktop — the range toggle. */}
             <div className="col-start-1 row-start-1 flex items-center gap-1">
               {showRange && (
                 <>
@@ -839,7 +918,7 @@ export function IngredientRow({
                 aria-label="Menge"
                 aria-invalid={(rowAmountError || rowRangeError) || undefined}
                 disabled={amountDisabled}
-                className="w-16"
+                className="w-20 md:w-16"
               />
               {!amountDisabled && (
                 <button
@@ -852,13 +931,13 @@ export function IngredientRow({
                       ? "Einzelne Menge"
                       : "Mengenbereich (von–bis)"
                   }
-                  className="shrink-0 rounded p-1 text-[var(--color-muted-fg)] hover:bg-[var(--color-bg)] hover:text-[var(--color-fg)]"
+                  className="hidden shrink-0 rounded p-1 text-[var(--color-muted-fg)] hover:bg-[var(--color-bg)] hover:text-[var(--color-fg)] md:inline-flex"
                 >
                   <ArrowLeftRight className="size-4" />
                 </button>
               )}
             </div>
-            <div className="col-span-4 flex flex-col gap-1 md:col-span-1 md:col-start-2 md:row-start-1">
+            <div className="col-start-2 row-start-1 flex min-w-0 flex-col gap-1">
               <SelectSearch
                 value={pickerValue}
                 onChange={onPickUnit}
@@ -874,18 +953,18 @@ export function IngredientRow({
                 handleNameChange(name, canonical, pickedIngredientId)
               }
               placeholder="Zutat"
-              className="col-span-5 md:col-span-1 md:col-start-3 md:row-start-1"
+              className="col-span-2 col-start-1 row-start-2 md:col-span-1 md:col-start-3 md:row-start-1"
             />
             <Input
               placeholder="Notiz (z. B. fein gehackt)"
               value={value.notes}
               onChange={(e) => onChange({ ...value, notes: e.target.value })}
               aria-label="Notiz"
-              className="col-span-2 md:col-span-1 md:col-start-4 md:row-start-1"
+              className="col-span-2 col-start-1 row-start-3 md:col-span-1 md:col-start-4 md:row-start-1"
             />
             {/* CandidatePills use the FULL row width on both mobile and
                 desktop, starting at the amount column (col 1). */}
-            <div className="col-span-8 md:col-span-10 md:col-start-1 md:row-start-2">
+            <div className="col-span-2 col-start-1 row-start-4 md:col-span-10 md:col-start-1 md:row-start-2">
               <CandidatePills
                 name={value.name}
                 candidates={serverMatches}
@@ -899,20 +978,19 @@ export function IngredientRow({
                 onEditArticle={setEditingArticleId}
               />
             </div>
+            {/* Desktop-only icon actions. Empty slots keep the columns aligned
+                between primaries and alternatives. */}
             {value.isAlternative ? (
-              // Alternatives are inherently optional — no toggle. Reserved
-              // empty slot keeps the columns aligned with primary rows.
+              // Alternatives are inherently optional — no toggle.
               <span
                 aria-hidden="true"
-                className="col-start-3 h-9 w-9 md:col-start-5 md:row-start-1 md:h-11 md:w-11"
+                className="hidden md:col-start-5 md:row-start-1 md:block md:h-11 md:w-11"
               />
             ) : (
               <Button
                 variant={value.isOptional ? "secondary" : "ghost"}
                 size="icon"
-                onClick={() =>
-                  onChange({ ...value, isOptional: !value.isOptional })
-                }
+                onClick={toggleOptional}
                 aria-pressed={value.isOptional}
                 aria-label={
                   value.isOptional
@@ -924,7 +1002,7 @@ export function IngredientRow({
                     ? "Optional – wird im Rezept gedimmt angezeigt und beim Einkaufslisten-Aufbau übersprungen."
                     : "Als optional markieren"
                 }
-                className="col-start-3 h-9 w-9 md:col-start-5 md:row-start-1 md:h-11 md:w-11"
+                className="hidden md:col-start-5 md:row-start-1 md:inline-flex"
               >
                 {value.isOptional ? (
                   <CircleHelp className="size-4" />
@@ -936,9 +1014,7 @@ export function IngredientRow({
             <Button
               variant={value.fixedAmount ? "secondary" : "ghost"}
               size="icon"
-              onClick={() =>
-                onChange({ ...value, fixedAmount: !value.fixedAmount })
-              }
+              onClick={toggleFixedAmount}
               aria-pressed={value.fixedAmount}
               aria-label={
                 value.fixedAmount
@@ -950,7 +1026,7 @@ export function IngredientRow({
                   ? "Feste Menge – wird bei geänderter Portionsanzahl nicht skaliert."
                   : "Menge unabhängig von Portionen markieren (z. B. eine Prise Salz)."
               }
-              className="col-start-4 h-9 w-9 md:col-start-6 md:row-start-1 md:h-11 md:w-11"
+              className="hidden md:col-start-6 md:row-start-1 md:inline-flex"
             >
               {value.fixedAmount ? (
                 <Lock className="size-4" />
@@ -959,39 +1035,32 @@ export function IngredientRow({
               )}
             </Button>
             {/* Indent/Outdent pair. */}
-            {value.isAlternative ? (
-              onDetach ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onDetach}
-                  aria-label="Zur eigenständigen Zutat machen"
-                  title="Macht diese Alternative zu einer eigenen Zutat. Sie verlässt die Gruppe und steht direkt darunter."
-                  className="col-start-5 h-9 w-9 md:col-start-7 md:row-start-1 md:h-11 md:w-11"
-                >
-                  <Outdent className="size-4" />
-                </Button>
-              ) : (
-                <span
-                  aria-hidden="true"
-                  className="col-start-5 h-9 w-9 md:col-start-7 md:row-start-1 md:h-11 md:w-11"
-                />
-              )
-            ) : onDemote ? (
+            {value.isAlternative && onDetach ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onDetach}
+                aria-label="Zur eigenständigen Zutat machen"
+                title="Macht diese Alternative zu einer eigenen Zutat. Sie verlässt die Gruppe und steht direkt darunter."
+                className="hidden md:col-start-7 md:row-start-1 md:inline-flex"
+              >
+                <Outdent className="size-4" />
+              </Button>
+            ) : !value.isAlternative && onDemote ? (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={onDemote}
                 aria-label="Als Alternative der vorherigen Zutat einordnen"
                 title="Macht diese Zutat zu einer Alternative der Zutat darüber."
-                className="col-start-5 h-9 w-9 md:col-start-7 md:row-start-1 md:h-11 md:w-11"
+                className="hidden md:col-start-7 md:row-start-1 md:inline-flex"
               >
                 <Indent className="size-4" />
               </Button>
             ) : (
               <span
                 aria-hidden="true"
-                className="col-start-5 h-9 w-9 md:col-start-7 md:row-start-1 md:h-11 md:w-11"
+                className="hidden md:col-start-7 md:row-start-1 md:block md:h-11 md:w-11"
               />
             )}
             {/* Add-alternative / promote. */}
@@ -1002,7 +1071,7 @@ export function IngredientRow({
                 onClick={onAddAlternative}
                 aria-label="Alternative hinzufügen"
                 title="Eine alternative Zutat unter dieser Zutat hinzufügen. Alternativen sind immer optional."
-                className="col-start-6 h-9 w-9 md:col-start-8 md:row-start-1 md:h-11 md:w-11"
+                className="hidden md:col-start-8 md:row-start-1 md:inline-flex"
               >
                 <CornerDownRight className="size-4" />
               </Button>
@@ -1013,14 +1082,14 @@ export function IngredientRow({
                 onClick={onPromote}
                 aria-label="Mit Hauptzutat tauschen"
                 title="Tauscht diese Alternative mit der Hauptzutat: die Alternative wird die neue Hauptzutat, die alte Hauptzutat wird zur Alternative."
-                className="col-start-6 h-9 w-9 md:col-start-8 md:row-start-1 md:h-11 md:w-11"
+                className="hidden md:col-start-8 md:row-start-1 md:inline-flex"
               >
                 <ArrowUp className="size-4" />
               </Button>
             ) : (
               <span
                 aria-hidden="true"
-                className="col-start-6 h-9 w-9 md:col-start-8 md:row-start-1 md:h-11 md:w-11"
+                className="hidden md:col-start-8 md:row-start-1 md:block md:h-11 md:w-11"
               />
             )}
             {/* Free-text toggle — last action before delete. Alternatives can't
@@ -1028,13 +1097,13 @@ export function IngredientRow({
             {value.isAlternative ? (
               <span
                 aria-hidden="true"
-                className="col-start-7 h-9 w-9 md:col-start-9 md:row-start-1 md:h-11 md:w-11"
+                className="hidden md:col-start-9 md:row-start-1 md:block md:h-11 md:w-11"
               />
             ) : (
               <FreeTextToggle
                 active={false}
                 onToggle={toggleFreeText}
-                className="col-start-7 h-9 w-9 md:col-start-9 md:row-start-1 md:h-11 md:w-11"
+                className="hidden md:col-start-9 md:row-start-1 md:inline-flex"
               />
             )}
             <Button
@@ -1042,7 +1111,7 @@ export function IngredientRow({
               size="icon"
               onClick={onRemove}
               aria-label="Zutat entfernen"
-              className="col-start-8 h-9 w-9 md:col-start-10 md:row-start-1 md:h-11 md:w-11"
+              className="hidden md:col-start-10 md:row-start-1 md:inline-flex"
             >
               <Trash2 className="size-4" />
             </Button>
@@ -1059,6 +1128,7 @@ export function IngredientRow({
             „einige“, „zwei“, „ein paar“).
           </p>
         ) : null}
+        </div>
         {editingArticleId != null ? (
           <EditArticleDialog
             ingredientId={editingArticleId}
@@ -1368,7 +1438,7 @@ function CandidatePill({
         type="button"
         onClick={onSelect}
         className={cn(
-          "max-w-full truncate py-0.5 pl-2.5 pr-2",
+          "max-w-full truncate py-0.5 pl-2.5 pr-2 pointer-coarse:py-1.5 pointer-coarse:pl-3",
           !isSelected &&
             "hover:bg-[color-mix(in_srgb,var(--color-accent),var(--color-bg)_75%)]",
         )}
@@ -1400,7 +1470,7 @@ function CandidatePill({
         type="button"
         onClick={() => onEditArticle(ingredientId)}
         className={cn(
-          "absolute inset-y-0 right-0 hidden items-center pl-1.5 pr-2 group-hover:flex",
+          "absolute inset-y-0 right-0 hidden items-center pl-1.5 pr-2 group-hover:flex [@media(hover:none)]:pl-2 [@media(hover:none)]:pr-3",
           "[@media(hover:none)]:static [@media(hover:none)]:flex [@media(hover:none)]:shrink-0",
           isSelected
             ? "bg-[var(--color-accent)] hover:bg-[color-mix(in_srgb,var(--color-accent-fg),var(--color-accent)_75%)]"
@@ -1429,7 +1499,7 @@ function NewPill({
       type="button"
       onClick={onSelect}
       className={cn(
-        "inline-flex max-w-full items-center gap-1 truncate rounded-full border border-dashed px-2 py-0.5 text-xs transition-colors",
+        "inline-flex max-w-full items-center gap-1 truncate rounded-full border border-dashed px-2 py-0.5 text-xs transition-colors pointer-coarse:px-3 pointer-coarse:py-1.5",
         isSelected
           ? "border-[var(--color-accent)] bg-[color-mix(in_srgb,var(--color-accent),var(--color-bg)_75%)] text-[var(--color-fg)]"
           : "border-[var(--color-border)] text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)]",
@@ -1516,3 +1586,87 @@ function UnitBadge({
   return null;
 }
 
+
+/**
+ * One-line read-out of a row for the collapsed phone view: amount + unit,
+ * name, note, and small markers for the states that matter before saving
+ * (optional, fixed amount, free text, a new article, a problem to fix).
+ */
+function IngredientSummary({
+  value,
+  hasError,
+}: {
+  value: DraftIngredient;
+  hasError: boolean;
+}) {
+  const qty = value.quantity.trim();
+  const low = value.quantityLow.trim();
+  const amount = value.isRange && low ? `${low}–${qty}` : qty;
+  const lead = value.unassigned
+    ? ""
+    : [amount, value.unit?.name ?? ""].filter(Boolean).join(" ");
+  const name = value.name.trim();
+  const notes = value.unassigned ? "" : value.notes.trim();
+  const isNew =
+    !value.unassigned && name.length > 0 && value.selectedIngredientId == null;
+  return (
+    <span className="flex min-w-0 flex-1 items-center gap-1.5">
+      {hasError ? (
+        <AlertTriangle
+          aria-label="Bitte prüfen"
+          className="size-4 shrink-0 text-[var(--color-danger)]"
+        />
+      ) : null}
+      <span
+        className={cn(
+          "min-w-0 truncate",
+          value.isOptional && !value.isAlternative && "opacity-70",
+        )}
+      >
+        {value.isAlternative ? (
+          <span className="text-[var(--color-muted-fg)]">oder </span>
+        ) : null}
+        {lead ? (
+          <span className="tabular-nums text-[var(--color-muted-fg)]">{lead} </span>
+        ) : null}
+        {name ? (
+          <span className="font-medium text-[var(--color-fg)]">{name}</span>
+        ) : (
+          <span className="italic text-[var(--color-muted-fg)]">Neue Zutat</span>
+        )}
+        {notes ? (
+          <span className="text-[var(--color-muted-fg)]">, {notes}</span>
+        ) : null}
+      </span>
+      {value.isOptional && !value.isAlternative ? (
+        <SummaryBadge>optional</SummaryBadge>
+      ) : null}
+      {value.fixedAmount ? (
+        <Lock aria-label="Feste Menge" className="size-3.5 shrink-0 text-[var(--color-muted-fg)]" />
+      ) : null}
+      {value.unassigned ? <SummaryBadge>Freitext</SummaryBadge> : null}
+      {isNew ? <SummaryBadge accent>neu</SummaryBadge> : null}
+    </span>
+  );
+}
+
+function SummaryBadge({
+  children,
+  accent = false,
+}: {
+  children: React.ReactNode;
+  accent?: boolean;
+}) {
+  return (
+    <span
+      className={cn(
+        "shrink-0 rounded-full px-1.5 py-px text-[0.6875rem] leading-4",
+        accent
+          ? "border border-dashed border-[var(--color-accent)] text-[var(--color-accent)]"
+          : "bg-[var(--color-muted)] text-[var(--color-muted-fg)]",
+      )}
+    >
+      {children}
+    </span>
+  );
+}

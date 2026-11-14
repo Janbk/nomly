@@ -360,7 +360,7 @@ export function MarkdownEditor({
             ) : (
               <Pencil className="size-4" />
             )}
-            <span className="text-xs">
+            <span className="hidden text-xs sm:inline">
               {mode === "edit" ? "Vorschau" : "Bearbeiten"}
             </span>
           </ToolbarButton>
