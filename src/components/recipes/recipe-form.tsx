@@ -123,6 +123,19 @@ export function RecipeForm({ initial, recipeId, tagSuggestions }: Props) {
 
   function removeSection(i: number) {
     if (draft.sections.length === 1) return;
+    // One tap removes the whole section — ask first when it holds anything.
+    const s = draft.sections[i];
+    const hasContent =
+      s.instructions.trim().length > 0 ||
+      s.ingredients.some((ing) => ing.name.trim() || ing.quantity.trim());
+    if (
+      hasContent &&
+      !window.confirm(
+        `Abschnitt ${s.title.trim() ? `„${s.title.trim()}“` : i + 1} mit allen Zutaten und der Zubereitung entfernen?`,
+      )
+    ) {
+      return;
+    }
     const sections = draft.sections.slice();
     sections.splice(i, 1);
     setDraft({ ...draft, sections });
@@ -472,9 +485,13 @@ export function RecipeForm({ initial, recipeId, tagSuggestions }: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} onKeyDown={onFormKeyDown} className="space-y-6">
-      <div className="rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-card)] p-4 md:p-6">
-        <div className="grid gap-4 md:grid-cols-2">
+    <form
+      onSubmit={onSubmit}
+      onKeyDown={onFormKeyDown}
+      className="space-y-4 md:space-y-6"
+    >
+      <FormCard title="Grunddaten">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div className="md:col-span-2">
             <Label htmlFor="title">Titel</Label>
             <Input
@@ -482,125 +499,133 @@ export function RecipeForm({ initial, recipeId, tagSuggestions }: Props) {
               value={draft.title}
               onChange={(e) => setDraft({ ...draft, title: e.target.value })}
               required
+              enterKeyHint="next"
               className="mt-1.5"
             />
+          </div>
+          {/* Portionen + times: three short numeric fields side by side even
+              on a phone, so they don't each eat a full-width row. */}
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 md:col-span-2">
+            <div>
+              <Label htmlFor="servings">Portionen</Label>
+              <Input
+                id="servings"
+                inputMode="numeric"
+                value={draft.servings}
+                onChange={(e) => setDraft({ ...draft, servings: e.target.value })}
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="prepTime">
+                Vorb.<span className="hidden sm:inline">ereitung</span>{" "}
+                <span className="font-normal text-[var(--color-muted-fg)]">(Min.)</span>
+              </Label>
+              <Input
+                id="prepTime"
+                inputMode="numeric"
+                value={draft.prepTimeMin}
+                onChange={(e) => setDraft({ ...draft, prepTimeMin: e.target.value })}
+                placeholder="–"
+                className="mt-1.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="cookTime">
+                Kochzeit{" "}
+                <span className="font-normal text-[var(--color-muted-fg)]">(Min.)</span>
+              </Label>
+              <Input
+                id="cookTime"
+                inputMode="numeric"
+                value={draft.cookTimeMin}
+                onChange={(e) => setDraft({ ...draft, cookTimeMin: e.target.value })}
+                placeholder="–"
+                className="mt-1.5"
+              />
+            </div>
           </div>
           <div className="md:col-span-2">
-            <Label htmlFor="description">Beschreibung (Markdown, optional)</Label>
-            <MarkdownEditor
-              id="description"
-              value={draft.description}
-              onChange={(description) => setDraft({ ...draft, description })}
-              rows={4}
-              className="mt-1.5"
-            />
-          </div>
-          <div>
-            <Label htmlFor="servings">Portionen</Label>
-            <Input
-              id="servings"
-              inputMode="numeric"
-              value={draft.servings}
-              onChange={(e) => setDraft({ ...draft, servings: e.target.value })}
-              className="mt-1.5"
-            />
-          </div>
-          <div>
-            <Label htmlFor="sourceUrl">Quelle (URL, optional)</Label>
+            <Label htmlFor="sourceUrl">
+              Quelle{" "}
+              <span className="font-normal text-[var(--color-muted-fg)]">(optional)</span>
+            </Label>
             <Input
               id="sourceUrl"
               type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
               value={draft.sourceUrl}
               onChange={(e) => setDraft({ ...draft, sourceUrl: e.target.value })}
               className="mt-1.5"
               placeholder="https://…"
             />
           </div>
-          <div>
-            <Label htmlFor="prepTime">Vorbereitungszeit (Min., optional)</Label>
-            <Input
-              id="prepTime"
-              inputMode="numeric"
-              value={draft.prepTimeMin}
-              onChange={(e) => setDraft({ ...draft, prepTimeMin: e.target.value })}
-              className="mt-1.5"
-            />
-          </div>
-          <div>
-            <Label htmlFor="cookTime">Kochzeit (Min., optional)</Label>
-            <Input
-              id="cookTime"
-              inputMode="numeric"
-              value={draft.cookTimeMin}
-              onChange={(e) => setDraft({ ...draft, cookTimeMin: e.target.value })}
+          <div className="md:col-span-2">
+            <Label htmlFor="description">
+              Beschreibung{" "}
+              <span className="font-normal text-[var(--color-muted-fg)]">(optional)</span>
+            </Label>
+            <MarkdownEditor
+              id="description"
+              value={draft.description}
+              onChange={(description) => setDraft({ ...draft, description })}
+              rows={3}
               className="mt-1.5"
             />
           </div>
         </div>
+      </FormCard>
 
-        <div className="mt-6 grid gap-6 md:grid-cols-2">
-          <div>
-            <Label>Foto</Label>
-            <div className="mt-1.5">
-              <PhotoUpload
-                photoPath={draft.photoPath}
-                onPhotoPathChange={(photoPath) => setDraft({ ...draft, photoPath })}
-                photoUrl={draft.photoUrl}
-                onPhotoUrlChange={(photoUrl) => setDraft({ ...draft, photoUrl })}
-              />
-            </div>
-          </div>
-          <div>
-            <Label>Tags</Label>
-            <div className="mt-1.5">
-              <TagInput
-                value={draft.tags}
-                onChange={(tags) => setDraft({ ...draft, tags })}
-                suggestions={tagSuggestions}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <Label>Erinnerungen (optional)</Label>
-          <p className="mt-0.5 text-xs text-[var(--color-muted-fg)]">
-            Vorbereitung relativ zum geplanten Tag — erscheint im Essensplan,
-            auf dem Dashboard und in Home Assistant.
-          </p>
-          <div className="mt-2">
-            <ReminderEditor
-              value={draft.reminders}
-              onChange={(reminders) => setDraft({ ...draft, reminders })}
-            />
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6">
+        <FormCard title="Foto">
+          <PhotoUpload
+            photoPath={draft.photoPath}
+            onPhotoPathChange={(photoPath) => setDraft({ ...draft, photoPath })}
+            photoUrl={draft.photoUrl}
+            onPhotoUrlChange={(photoUrl) => setDraft({ ...draft, photoUrl })}
+          />
+        </FormCard>
+        <FormCard title="Tags">
+          <TagInput
+            value={draft.tags}
+            onChange={(tags) => setDraft({ ...draft, tags })}
+            suggestions={tagSuggestions}
+          />
+        </FormCard>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[var(--color-fg)]">Abschnitte</h2>
-          <div className="flex items-center gap-2">
-            {anyReparsable ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={reparseWholeRecipe}
-                disabled={reparsingAll}
-                title="Alle Zutaten aus ihren Originalzeilen neu parsen (verwirft manuelle Änderungen)"
-              >
-                <RefreshCw
-                  className={cn("size-4", reparsingAll && "animate-spin")}
-                />
-                Alle neu parsen
-              </Button>
-            ) : null}
-            <Button type="button" variant="outline" size="sm" onClick={addSection}>
-              <Plus className="size-4" />
-              Abschnitt hinzufügen
+      <FormCard
+        title="Erinnerungen"
+        description="Vorbereitung relativ zum geplanten Tag — erscheint im Essensplan, auf dem Dashboard und in Home Assistant."
+      >
+        <ReminderEditor
+          value={draft.reminders}
+          onChange={(reminders) => setDraft({ ...draft, reminders })}
+        />
+      </FormCard>
+
+      <div className="space-y-3 md:space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+          <h2 className="text-lg font-semibold text-[var(--color-fg)]">
+            Zutaten &amp; Zubereitung
+          </h2>
+          {anyReparsable ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={reparseWholeRecipe}
+              disabled={reparsingAll}
+              title="Alle Zutaten aus ihren Originalzeilen neu parsen (verwirft manuelle Änderungen)"
+            >
+              <RefreshCw
+                className={cn("size-4", reparsingAll && "animate-spin")}
+              />
+              Alle neu parsen
             </Button>
-          </div>
+          ) : null}
         </div>
         <DndContext
           // Stable `id` keeps @dnd-kit's internal `DndDescribedBy-{n}` ARIA
@@ -633,10 +658,25 @@ export function RecipeForm({ initial, recipeId, tagSuggestions }: Props) {
             ) : null}
           </DragOverlay>
         </DndContext>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={addSection}
+          className="w-full border-dashed"
+        >
+          <Plus className="size-4" />
+          Abschnitt hinzufügen
+          <span className="hidden font-normal text-[var(--color-muted-fg)] sm:inline">
+            (z. B. Teig, Füllung, Soße)
+          </span>
+        </Button>
       </div>
 
       {error ? (
-        <p className="rounded-[var(--radius)] border border-[var(--color-danger)] bg-[color-mix(in_srgb,var(--color-danger),var(--color-bg)_85%)] px-3 py-2 text-sm text-[var(--color-danger)]">
+        <p
+          role="alert"
+          className="rounded-[var(--radius)] border border-[var(--color-danger)] bg-[color-mix(in_srgb,var(--color-danger),var(--color-bg)_85%)] px-3 py-2 text-sm text-[var(--color-danger)]"
+        >
           {error}
         </p>
       ) : null}
@@ -652,27 +692,51 @@ export function RecipeForm({ initial, recipeId, tagSuggestions }: Props) {
         onConfirm={onConfirmNewIngredients}
       />
 
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+      {/* Action bar. Sticky so saving never needs a scroll to the end of a
+          long recipe — on phones it rides just above the bottom nav (h-16 +
+          safe area), on desktop at the viewport's bottom edge. */}
+      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-4 flex items-center gap-2 border-t border-[var(--color-border)] bg-[var(--color-bg)]/95 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-[var(--color-bg)]/80 md:bottom-0 md:-mx-6 md:justify-end md:px-6">
         {recipeId ? (
           <Button
             type="button"
-            variant="danger"
+            variant="ghost"
             onClick={onDelete}
             disabled={saving}
+            aria-label="Rezept löschen"
+            title="Rezept löschen"
+            className="shrink-0 text-[var(--color-danger)] max-md:w-11 max-md:px-0"
           >
             <Trash2 className="size-4" />
-            Rezept löschen
+            <span className="hidden md:inline">Rezept löschen</span>
           </Button>
         ) : null}
-        <Button
-          type="submit"
-          disabled={saving}
-        >
+        <Button type="submit" disabled={saving} className="flex-1 md:flex-none">
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
           {recipeId ? "Änderungen speichern" : "Rezept anlegen"}
         </Button>
       </div>
     </form>
+  );
+}
+
+/** One titled card of the form — keeps the long form scannable on a phone. */
+function FormCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-card)] p-3 sm:p-4 md:p-6">
+      <h2 className="text-base font-semibold text-[var(--color-fg)]">{title}</h2>
+      {description ? (
+        <p className="mt-0.5 text-xs text-[var(--color-muted-fg)]">{description}</p>
+      ) : null}
+      <div className="mt-3">{children}</div>
+    </section>
   );
 }
 

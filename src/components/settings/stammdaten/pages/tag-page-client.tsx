@@ -45,7 +45,7 @@ export function TagPageClient({ initialItems }: { initialItems: TagItem[] }) {
       type="button"
       onClick={() => setUnusedOnly(!unusedOnly)}
       className={
-        "rounded-full border px-3 py-1 text-xs transition-colors " +
+        "rounded-full border px-3 py-1 pointer-coarse:py-2 text-xs transition-colors " +
         (unusedOnly
           ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
           : "border-[var(--color-border)] hover:bg-[var(--color-muted)]")

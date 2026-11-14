@@ -23,7 +23,7 @@ export function RandomizeButton() {
         onClick={roll}
         title="Ein paar zufällige Rezepte aus der aktuellen Auswahl zeigen"
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 pointer-coarse:py-2 text-xs font-medium transition-colors",
           "border-[var(--color-border)] text-[var(--color-muted-fg)] hover:text-[var(--color-fg)]",
           "disabled:cursor-not-allowed disabled:opacity-50",
         )}
@@ -43,7 +43,7 @@ export function RandomizeButton() {
         aria-pressed
         onClick={roll}
         title="Neue zufällige Auswahl würfeln"
-        className="inline-flex items-center gap-1.5 px-3 py-1 transition-colors hover:bg-black/10"
+        className="inline-flex items-center gap-1.5 px-3 py-1 pointer-coarse:py-2 transition-colors hover:bg-black/10"
       >
         <Dices className="size-3.5" />
         Neu würfeln

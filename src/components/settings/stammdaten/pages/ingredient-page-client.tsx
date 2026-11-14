@@ -90,6 +90,7 @@ const columns: ColumnDef<IngredientItem>[] = [
   },
   {
     key: "conversions",
+    hideOnMobile: true,
     header: "Umrechnungen",
     cell: (item) => {
       if (item.conversions.length === 0) {
@@ -147,6 +148,7 @@ const columns: ColumnDef<IngredientItem>[] = [
   },
   {
     key: "unavailable",
+    hideOnMobile: true,
     header: "Nicht verfügbar bei",
     cell: (item) => {
       if (item.excludedSupermarkets.length === 0) {
@@ -179,6 +181,7 @@ const columns: ColumnDef<IngredientItem>[] = [
   },
   {
     key: "purchase",
+    hideOnMobile: true,
     header: "Einkauf",
     cell: (item) => {
       const text = formatPurchaseStatsShort(item.purchaseStats);
@@ -397,7 +400,7 @@ function Chip({
       type="button"
       onClick={onClick}
       className={
-        "rounded-full border px-3 py-1 text-xs transition-colors " +
+        "rounded-full border px-3 py-1 pointer-coarse:py-2 text-xs transition-colors " +
         (active
           ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
           : "border-[var(--color-border)] hover:bg-[var(--color-muted)]")

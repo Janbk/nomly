@@ -236,7 +236,7 @@ function DayEndDropZone({
           aria-label="Mahlzeit hinzufügen"
           // Mobile has no hover to reveal this, so show a persistent dashed
           // add button; desktop keeps the borderless 60%-until-hover affordance.
-          className="flex h-7 w-full items-center justify-center gap-1 rounded-md border border-dashed border-[var(--color-border)] text-xs text-[var(--color-muted-fg)] transition-opacity hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:opacity-100 group-hover:opacity-100 md:border-0 md:opacity-60"
+          className="flex h-10 w-full items-center justify-center gap-1 rounded-md border border-dashed md:h-7 border-[var(--color-border)] text-xs text-[var(--color-muted-fg)] transition-opacity hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:opacity-100 group-hover:opacity-100 md:border-0 md:opacity-60"
         >
           <Plus className="size-3" />
         </button>

@@ -65,7 +65,7 @@ export function FavoriteHeart({
         "z-10 inline-flex size-8 items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-card)]/85 backdrop-blur-sm transition-opacity hover:bg-[var(--color-card)] focus-visible:opacity-100",
         favorite
           ? "text-[var(--color-danger)] opacity-100"
-          : "text-[var(--color-fg)] opacity-0 group-hover:opacity-100",
+          : "text-[var(--color-fg)] opacity-0 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
         className,
       )}
     >

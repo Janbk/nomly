@@ -170,13 +170,6 @@ export function SectionEditor({
     if (next) onChange({ ...section, ingredients: next });
   }
 
-  function addIngredient() {
-    onChange({
-      ...section,
-      ingredients: [...section.ingredients, emptyIngredient()],
-    });
-  }
-
   // Pending uid of a row inserted via the divider button, focused once its
   // IngredientRow has mounted. Mirrors recipe-form's scrollToSectionUid.
   const [focusIngredientUid, setFocusIngredientUid] = React.useState<
@@ -186,13 +179,24 @@ export function SectionEditor({
     if (!focusIngredientUid) return;
     const row = document.getElementById(`ingredient-row-${focusIngredientUid}`);
     if (row) {
-      row.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      row.scrollIntoView({ behavior: "smooth", block: "center" });
       row.querySelector("input")?.focus();
     }
     // Consume the trigger so a re-render doesn't steal focus again.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setFocusIngredientUid(null);
   }, [focusIngredientUid]);
+
+  function addIngredient() {
+    const fresh = emptyIngredient();
+    onChange({
+      ...section,
+      ingredients: [...section.ingredients, fresh],
+    });
+    // Bring the new row into view and focus it — on a phone it would
+    // otherwise appear below the fold with no visible effect of the tap.
+    setFocusIngredientUid(fresh.uid);
+  }
 
   /** Insert an empty row before the primary at `i` — i.e. on the divider
    *  between two groups, where the button sits. Inserting before a primary
@@ -426,56 +430,76 @@ export function SectionEditor({
   }
 
   return (
-    <div className="rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-card)] p-4 md:p-6">
-      <div className="flex items-start gap-2">
-        <div className="flex-1">
+    <div className="rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-card)] p-3 sm:p-4 md:p-6">
+      <div className="flex items-center gap-1 sm:gap-2">
+        <div className="min-w-0 flex-1">
           <Label htmlFor={`section-title-${section.uid}`} className="sr-only">
             Abschnittstitel
           </Label>
           <Input
             id={`section-title-${section.uid}`}
-            placeholder={`Abschnitt ${index + 1} (optional, z. B. „Teig")`}
+            placeholder={
+              total > 1
+                ? `Abschnitt ${index + 1} – Titel, z. B. „Teig“`
+                : "Abschnittstitel (optional, z. B. „Teig“)"
+            }
             value={section.title}
             onChange={(e) => onChange({ ...section, title: e.target.value })}
+            className="font-medium"
           />
         </div>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => onMove(-1)}
-          disabled={index === 0}
-          aria-label="Nach oben"
-          className="h-9 w-9 md:h-11 md:w-11"
-        >
-          <ArrowUp className="size-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={() => onMove(1)}
-          disabled={index === total - 1}
-          aria-label="Nach unten"
-          className="h-9 w-9 md:h-11 md:w-11"
-        >
-          <ArrowDown className="size-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={onRemove}
-          disabled={total === 1}
-          aria-label="Abschnitt entfernen"
-          className="h-9 w-9 md:h-11 md:w-11"
-        >
-          <Trash2 className="size-4" />
-        </Button>
+        {/* Moving/removing only makes sense with more than one section — hide
+            the controls entirely instead of showing three disabled icons. */}
+        {total > 1 ? (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onMove(-1)}
+              disabled={index === 0}
+              aria-label="Abschnitt nach oben"
+              title="Abschnitt nach oben"
+              className="w-9 sm:w-11"
+            >
+              <ArrowUp className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onMove(1)}
+              disabled={index === total - 1}
+              aria-label="Abschnitt nach unten"
+              title="Abschnitt nach unten"
+              className="w-9 sm:w-11"
+            >
+              <ArrowDown className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onRemove}
+              aria-label="Abschnitt entfernen"
+              title="Abschnitt entfernen"
+              className="w-9 text-[var(--color-danger)] sm:w-11"
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </>
+        ) : null}
       </div>
 
       <div className="mt-4 space-y-3">
-        <Label htmlFor={`section-ingredients-${section.uid}`}>Zutaten</Label>
+        <div className="flex items-baseline justify-between gap-2">
+          <Label htmlFor={`section-ingredients-${section.uid}`}>Zutaten</Label>
+          {section.ingredients.length > 0 ? (
+            <span className="text-xs text-[var(--color-muted-fg)]">
+              {section.ingredients.length}
+            </span>
+          ) : null}
+        </div>
         <SortableContext
           // Each draggable here is a GROUP (primary + its alternatives), keyed
           // by the primary's uid, so dragging the primary's grip moves the
@@ -528,28 +552,33 @@ export function SectionEditor({
             })}
           </IngredientDropZone>
         </SortableContext>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           <Button
             type="button"
             variant="outline"
-            size="sm"
             onClick={addIngredient}
+            className="sm:h-9 sm:px-3"
           >
             <Plus className="size-4" />
-            Zutat hinzufügen
+            Zutat
+            <span className="hidden sm:inline">hinzufügen</span>
           </Button>
           <Button
             type="button"
-            variant="ghost"
-            size="sm"
+            variant="outline"
             onClick={openPasteDialog}
             title="Öffnet ein Eingabefeld — Text einfügen, dann parsen."
+            className="sm:h-9 sm:border-transparent sm:px-3"
           >
             <ClipboardPaste className="size-4" />
-            Aus Zwischenablage einfügen
+            <span className="sm:hidden">Liste einfügen</span>
+            <span className="hidden sm:inline">Aus Zwischenablage einfügen</span>
           </Button>
           {pasteInfo ? (
-            <span className="text-xs text-[var(--color-success)]">
+            <span
+              role="status"
+              className="col-span-2 text-xs text-[var(--color-success)]"
+            >
               {pasteInfo}
             </span>
           ) : null}
@@ -635,9 +664,9 @@ export function SectionEditor({
         </DialogContent>
       </Dialog>
 
-      <div className="mt-4">
+      <div className="mt-5 border-t border-[var(--color-border)] pt-4">
         <Label htmlFor={`section-instructions-${section.uid}`}>
-          Anleitung (Markdown)
+          Zubereitung
         </Label>
         <MarkdownEditor
           id={`section-instructions-${section.uid}`}
@@ -741,7 +770,7 @@ function IngredientGroup({
         // the between-groups divider where the split button sits — while the
         // primary↔alternative dividers inside the group keep the tighter
         // row padding.
-        "relative divide-y divide-[var(--color-border)] py-2",
+        "relative divide-y divide-[var(--color-border)] py-0.5 md:py-2",
         isDragging && "z-10 opacity-40",
       )}
     >
@@ -762,6 +791,8 @@ function IngredientGroup({
             "absolute right-12 top-0 z-10 -translate-y-1/2",
             "inline-flex items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-card)] p-1.5 text-[var(--color-muted-fg)]",
             "transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-fg)]",
+            // Phones get these via the row menu instead — too small to hit.
+            "hidden md:inline-flex",
           )}
           title="Zutat hier einfügen — eine leere Zeile erscheint an dieser Stelle."
           aria-label="Zutat hier einfügen"
@@ -777,6 +808,8 @@ function IngredientGroup({
             "absolute right-3 top-0 z-10 -translate-y-1/2",
             "inline-flex items-center justify-center rounded-full border border-[var(--color-border)] bg-[var(--color-card)] p-1.5 text-[var(--color-muted-fg)]",
             "transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-fg)]",
+            // Phones get these via the row menu instead — too small to hit.
+            "hidden md:inline-flex",
           )}
           title="Abschnitt hier teilen — die Zeilen ab hier wandern in einen neuen Abschnitt."
           aria-label="Abschnitt hier teilen"
@@ -793,6 +826,8 @@ function IngredientGroup({
         onDemote={onDemote}
         onPromoteFolded={onPromoteFolded}
         onPromoteFoldedIngredient={onPromoteFoldedIngredient}
+        onInsertAbove={onInsertAbove}
+        onSplitAbove={onSplitAbove}
         dragAttributes={attributes}
         dragListeners={listeners}
       />
