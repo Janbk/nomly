@@ -85,6 +85,22 @@ describe("embed allow-list", () => {
     ).toBe(false);
   });
 
+  it("permits the stock-check embed's endpoints (/embed/lager)", () => {
+    expect(isEmbedAllowedPath("/embed/lager", "GET")).toBe(true);
+    expect(isEmbedAllowedPath("/api/v1/shopping/stock", "POST")).toBe(true);
+    expect(isEmbedAllowedPath("/api/v1/shopping/stock/preview", "POST")).toBe(
+      true,
+    );
+    expect(isEmbedAllowedPath("/api/v1/units", "GET")).toBe(true);
+    // only those methods and exact paths
+    expect(isEmbedAllowedPath("/api/v1/shopping/stock", "DELETE")).toBe(false);
+    expect(isEmbedAllowedPath("/api/v1/shopping/stock/other", "POST")).toBe(
+      false,
+    );
+    expect(isEmbedAllowedPath("/api/v1/units", "POST")).toBe(false);
+    expect(isEmbedAllowedPath("/api/v1/units/3", "GET")).toBe(false);
+  });
+
   it("denies everything else", () => {
     expect(isEmbedAllowedPath("/api/v1/recipes", "GET")).toBe(false);
     expect(isEmbedAllowedPath("/rezepte/12", "GET")).toBe(false);

@@ -15,6 +15,11 @@ export const E2E_CONFIG = {
   /** Must be ≥32 chars (src/lib/env.ts) and match the minted cookie's seal. */
   sessionSecret: "nomly-e2e-session-secret-at-least-32-chars",
   storageStatePath: resolve("tests/e2e/.auth/storage-state.json"),
+  /**
+   * An "embed"-scoped API token, inserted (as its sha256) by global setup —
+   * what Home Assistant puts in `?k=` on /embed/** URLs. Test-only value.
+   */
+  embedToken: "nomly-e2e-embed-token-not-a-secret",
 } as const;
 
 export const E2E_BASE_URL = `http://127.0.0.1:${E2E_CONFIG.proxyPort}`;

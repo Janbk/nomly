@@ -96,24 +96,41 @@ const EMBED_API_GET = [
   // "where else is this ingredient used this week" — the upcoming-uses popover,
   // enabled when the embed is opened with ?meal=<mealPlanId>.
   /^\/api\/v1\/meal-plans\/\d+\/upcoming-ingredient-uses$/,
+  // unit picker in the "Auf Lager prüfen" embed (/embed/lager)
+  /^\/api\/v1\/units$/,
 ];
 
 /**
  * PATCH endpoints the embed recipe view calls from the client. The single
  * entry is the "Update vormerken" wrench button — the reminder flag (plus an
- * optional reason), deliberately the only write an embed principal can perform.
+ * optional reason). Besides the stock check below, the only write an embed
+ * principal can perform.
  */
 const EMBED_API_PATCH = [/^\/api\/v1\/recipes\/\d+\/needs-update$/];
 
 /**
- * What an "embed"-scoped principal may reach. Deliberately tiny: the embed
- * recipe pages, a short GET-only allow-list of read endpoints the page
- * fetches, and the needs-update flag toggle (the embed view's only write).
+ * POST endpoints of the "Auf Lager prüfen" embed (/embed/lager): the coverage
+ * dry-run and the batch save. They only set "already at home" amounts on
+ * shopping-list items (and drop items whose demand is covered or that the
+ * user removes in the form).
+ */
+const EMBED_API_POST = [
+  /^\/api\/v1\/shopping\/stock$/,
+  /^\/api\/v1\/shopping\/stock\/preview$/,
+];
+
+/**
+ * What an "embed"-scoped principal may reach. Deliberately tiny: the
+ * embed pages, a short GET-only allow-list of read endpoints they fetch, the
+ * needs-update flag toggle and the stock-check save (the only writes).
  * Everything else is denied.
  */
 export function isEmbedAllowedPath(pathname: string, method: string): boolean {
   if (pathname === "/embed" || pathname.startsWith("/embed/")) return true;
   if (method === "GET" && EMBED_API_GET.some((re) => re.test(pathname))) {
+    return true;
+  }
+  if (method === "POST" && EMBED_API_POST.some((re) => re.test(pathname))) {
     return true;
   }
   if (method === "PATCH" && EMBED_API_PATCH.some((re) => re.test(pathname))) {

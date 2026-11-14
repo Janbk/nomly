@@ -50,7 +50,7 @@ function allow(res: NextResponse = NextResponse.next()): NextResponse {
 /**
  * Gate a request for a verified principal by its scope. "full" reaches
  * everything; "embed" is confined to the embed allow-list (reads plus the
- * needs-update flag toggle).
+ * needs-update flag toggle and the stock-check save).
  */
 function authorizeScope(
   scope: TokenScope,

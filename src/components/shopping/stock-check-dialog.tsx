@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Trash2, Undo2 } from "lucide-react";
+import { Minus, Plus, Trash2, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { type ComboboxItem } from "@/components/ui/combobox";
 import { AmountList } from "./amount-list";
@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
 import type { ShoppingItemView } from "@/lib/shopping/items";
+import { stepStockInput } from "@/lib/shopping/stock-step";
 import { previewStockCoverage, setStockBatch } from "./api";
 
 type Props = {
@@ -25,6 +26,17 @@ type Props = {
   items: ShoppingItemView[];
   onClose: () => void;
   onSaved: (items: ShoppingItemView[]) => void;
+};
+
+type BodyProps = Omit<Props, "open"> & {
+  /**
+   * Rendered outside a Radix Dialog (the Home Assistant embed page): plain
+   * heading elements instead of DialogTitle/Description, which need the
+   * Dialog context, and no "Abbrechen" button — the HA popup closes itself.
+   */
+  embedded?: boolean;
+  /** Embedded only: hide the heading (the HA popup header already shows it). */
+  showTitle?: boolean;
 };
 
 function parseInput(raw: string): number | null {
@@ -47,7 +59,7 @@ function initialUnit(item: ShoppingItemView): ComboboxItem | null {
 export function StockCheckDialog({ open, items, onClose, onSaved }: Props) {
   return (
     <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : undefined)}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-xl">
         {open ? (
           <StockCheckBody items={items} onClose={onClose} onSaved={onSaved} />
         ) : null}
@@ -56,11 +68,15 @@ export function StockCheckDialog({ open, items, onClose, onSaved }: Props) {
   );
 }
 
-function StockCheckBody({
+export function StockCheckBody({
   items,
   onClose,
   onSaved,
-}: Omit<Props, "open">) {
+  embedded = false,
+  showTitle = true,
+}: BodyProps) {
+  const Title = embedded ? "h1" : DialogTitle;
+  const Description = embedded ? "p" : DialogDescription;
   // Stable snapshot for the lifetime of the dialog so inputs don't reshuffle
   // when a background realtime update arrives. Only still-to-buy items are
   // relevant: checked-off ones are already handled, so there's nothing to
@@ -75,10 +91,15 @@ function StockCheckBody({
     Object.fromEntries(rows.map((i) => [i.id, initialUnit(i)])),
   );
   const [removed, setRemoved] = React.useState<Record<number, boolean>>({});
+  /** The −/+ buttons: step an amount by one (see stepStockInput). */
+  function stepQty(id: number, delta: number) {
+    setQty((prev) => ({ ...prev, [id]: stepStockInput(prev[id] ?? "", delta) }));
+  }
   // Items whose demand the current inputs would fully cover — the server
   // removes those on save, so the row shows it up front (debounced dry-run).
   const [covered, setCovered] = React.useState<Set<number>>(new Set());
   const [saving, setSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (rows.length === 0) return;
@@ -106,6 +127,7 @@ function StockCheckBody({
 
   async function commit() {
     setSaving(true);
+    setSaveError(null);
     try {
       const entries: Array<{
         itemId: number;
@@ -134,6 +156,9 @@ function StockCheckBody({
       }
       const updated = await setStockBatch(entries);
       onSaved(updated);
+    } catch {
+      // Keep the form (and the user's inputs) so they can retry.
+      setSaveError("Speichern fehlgeschlagen. Bitte erneut versuchen.");
     } finally {
       setSaving(false);
     }
@@ -142,11 +167,13 @@ function StockCheckBody({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Auf Lager prüfen</DialogTitle>
-        <DialogDescription>
+        {showTitle ? (
+          <Title className="text-lg font-semibold leading-tight">Auf Lager prüfen</Title>
+        ) : null}
+        <Description className="text-sm text-[var(--color-muted-fg)]">
           Trag ein, was du schon zu Hause hast — es wird vom Gesamtbedarf
           derselben Einheit abgezogen.
-        </DialogDescription>
+        </Description>
       </DialogHeader>
       <DialogBody>
         {rows.length === 0 ? (
@@ -160,8 +187,11 @@ function StockCheckBody({
               const isCovered = !isRemoved && covered.has(i.id);
               return (
                 <li key={i.id} className="flex flex-col gap-0.5">
-                  <div className="flex items-center gap-2">
-                    <div className="min-w-0 flex-1">
+                  {/* One line from `sm` up. On phones the controls wrap below
+                      the name, so the 44px touch targets of the −/+ stepper
+                      don't squeeze the name to nothing. */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">
+                    <div className="min-w-0 basis-full sm:flex-1 sm:basis-auto">
                       <p
                         className={cn(
                           "truncate text-sm",
@@ -183,43 +213,68 @@ function StockCheckBody({
                         </p>
                       ) : null}
                     </div>
-                    <Input
-                      type="text"
-                      inputMode="decimal"
-                      value={qty[i.id] ?? ""}
-                      onChange={(e) =>
-                        setQty((prev) => ({ ...prev, [i.id]: e.target.value }))
-                      }
-                      placeholder="Menge"
-                      className="w-20"
-                      disabled={isRemoved}
-                      aria-label={`Auf Lager: ${i.name}`}
-                    />
-                    <UnitSelect
-                      value={units[i.id] ?? null}
-                      onChange={(u) => setUnits((prev) => ({ ...prev, [i.id]: u }))}
-                      className="w-28"
-                      disabled={isRemoved}
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() =>
-                        setRemoved((prev) => ({ ...prev, [i.id]: !prev[i.id] }))
-                      }
-                      aria-label={
-                        isRemoved
-                          ? `Entfernen rückgängig: ${i.name}`
-                          : `Von der Liste entfernen: ${i.name}`
-                      }
-                      title={isRemoved ? "Entfernen rückgängig" : "Von der Liste entfernen"}
-                    >
-                      {isRemoved ? (
-                        <Undo2 className="size-4" />
-                      ) : (
-                        <Trash2 className="size-4 text-[var(--color-danger)]" />
-                      )}
-                    </Button>
+                    <div className="flex w-full items-center gap-2 sm:w-auto">
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => stepQty(i.id, -1)}
+                          disabled={isRemoved || parseInput(qty[i.id] ?? "") == null}
+                          aria-label={`Weniger auf Lager: ${i.name}`}
+                          title="Weniger"
+                        >
+                          <Minus className="size-4" />
+                        </Button>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          value={qty[i.id] ?? ""}
+                          onChange={(e) =>
+                            setQty((prev) => ({ ...prev, [i.id]: e.target.value }))
+                          }
+                          placeholder="Menge"
+                          className="w-16 px-1 text-center"
+                          disabled={isRemoved}
+                          aria-label={`Auf Lager: ${i.name}`}
+                        />
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => stepQty(i.id, 1)}
+                          disabled={isRemoved}
+                          aria-label={`Mehr auf Lager: ${i.name}`}
+                          title="Mehr"
+                        >
+                          <Plus className="size-4" />
+                        </Button>
+                      </div>
+                      <UnitSelect
+                        value={units[i.id] ?? null}
+                        onChange={(u) => setUnits((prev) => ({ ...prev, [i.id]: u }))}
+                        className="min-w-0 flex-1 sm:w-28 sm:flex-none"
+                        disabled={isRemoved}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() =>
+                          setRemoved((prev) => ({ ...prev, [i.id]: !prev[i.id] }))
+                        }
+                        aria-label={
+                          isRemoved
+                            ? `Entfernen rückgängig: ${i.name}`
+                            : `Von der Liste entfernen: ${i.name}`
+                        }
+                        title={isRemoved ? "Entfernen rückgängig" : "Von der Liste entfernen"}
+                      >
+                        {isRemoved ? (
+                          <Undo2 className="size-4" />
+                        ) : (
+                          <Trash2 className="size-4 text-[var(--color-danger)]" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   {isRemoved || isCovered ? (
                     <p className="text-xs text-[var(--color-danger)]">
@@ -235,9 +290,19 @@ function StockCheckBody({
         )}
       </DialogBody>
       <DialogFooter>
-        <Button variant="ghost" onClick={onClose} disabled={saving}>
-          Abbrechen
-        </Button>
+        {saveError ? (
+          <p
+            role="alert"
+            className="text-sm text-[var(--color-danger)] sm:mr-auto sm:self-center"
+          >
+            {saveError}
+          </p>
+        ) : null}
+        {embedded ? null : (
+          <Button variant="ghost" onClick={onClose} disabled={saving}>
+            Abbrechen
+          </Button>
+        )}
         <Button onClick={commit} disabled={saving}>
           {saving ? "Speichert…" : "Speichern"}
         </Button>
