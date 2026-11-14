@@ -636,7 +636,34 @@ Notes:
 | GET | `/api/v1/shopping/today-meal-status` | Today's meals still needing shopping + per-shop coverage. |
 | GET | `/embed/rezepte/<id>?k=<embed token>` | Chrome-less recipe view for the iframe. Includes the "Update vormerken" toggle. |
 | PATCH | `/api/v1/recipes/<id>/needs-update` | Toggle the "Update vormerken" flag (embed scope may call it). |
-| GET | `/embed/lager?k=<embed token>[&title=0]` | Chrome-less "Auf Lager prüfen" (stock check) form for an HA popup. |
+| GET | `/embed/lager?k=<embed token>[&title=0]` | Chrome-less "Auf Lager prüfen" (stock check) form for an HA popup. Posts `nomly:close-popup` to the parent frame when done (see below). |
 | POST | `/api/v1/shopping/stock`, `/api/v1/shopping/stock/preview` | Stock-check save and coverage dry-run (embed scope may call them). |
 | GET | `/einkauf?supermarket=<id>` | Shopping list with a store preselected (persists as the default). |
 | GET | `/einkauf?supermarket=all` | Shopping list with the store filter reset to "Alle Supermärkte" (clears the stored default). |
+
+### `/embed/lager` asks HA to close its popup
+
+The iframe can't close the browser_mod popup it sits in (the dialog belongs to
+the cross-origin HA page). So when "Speichern" succeeds — or is pressed without
+changes, since for the user the button means "done" — the page posts this to
+its parent frame:
+
+```js
+{ type: "nomly:close-popup", source: "stock-check" }
+```
+
+It is sent with `targetOrigin` `"*"`: the message carries no data, and
+`EMBED_FRAME_ANCESTORS` already limits who may frame the page. **Check
+`event.origin` in the listener.** A failed save sends nothing (the error stays
+in the form). If nobody listens (page opened directly), the page shows
+"Gespeichert." / "Keine Änderungen." and reloads the form instead.
+
+Listener on the HA side (e.g. a small script loaded as a Lovelace resource;
+browser_mod must be installed):
+
+```js
+window.addEventListener("message", (e) => {
+  if (e.origin === "https://nomly.weingaertner.pro" && e.data?.type === "nomly:close-popup")
+    window.browser_mod?.service("close_popup", {});
+});
+```
