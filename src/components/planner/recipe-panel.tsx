@@ -194,7 +194,12 @@ function PanelRecipeList({
 
   return (
     <>
-      <RecipeFilterBar allTags={allTags} value={filter} onChange={onFilterChange} />
+      <RecipeFilterBar
+        allTags={allTags}
+        value={filter}
+        onChange={onFilterChange}
+        collapsible={{ storageKey: "nomly.planner.panelFiltersOpen" }}
+      />
       {/* `pb-4` lives inside the scroll container so the last recipe has
           a bit of breathing room at the bottom when scrolled all the way.
           Rows are virtualized: only the on-screen slice is in the DOM, which

@@ -177,7 +177,12 @@ function MealPicker({
 
   return (
     <div className="flex flex-col gap-3">
-      <RecipeFilterBar allTags={allTags} value={filter} onChange={onFilterChange} />
+      <RecipeFilterBar
+        allTags={allTags}
+        value={filter}
+        onChange={onFilterChange}
+        collapsible={{ storageKey: "nomly.planner.addMealFiltersOpen" }}
+      />
       <div className="max-h-72 space-y-1 overflow-y-auto">
         {filtered.length === 0 ? (
           <p className="text-sm text-[var(--color-muted-fg)]">Keine Treffer.</p>
