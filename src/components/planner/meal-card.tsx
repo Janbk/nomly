@@ -657,7 +657,7 @@ function MobileMealCard({
                 stop(e);
                 onAdjustPortions(meal.id, -1);
               }}
-              className="inline-flex size-6 shrink-0 items-center justify-center rounded text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] disabled:pointer-events-none disabled:opacity-40"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] disabled:pointer-events-none disabled:opacity-40"
             >
               <Minus className="size-3.5" />
             </button>
@@ -676,7 +676,7 @@ function MobileMealCard({
                 stop(e);
                 onAdjustPortions(meal.id, 1);
               }}
-              className="inline-flex size-6 shrink-0 items-center justify-center rounded text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
+              className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
             >
               <Plus className="size-3.5" />
             </button>
@@ -689,7 +689,7 @@ function MobileMealCard({
                   stop(e);
                   onAdjustPortions(meal.id, meal.recipe.baseServings - meal.servings);
                 }}
-                className="inline-flex size-6 shrink-0 items-center justify-center rounded text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
               >
                 <RotateCcw className="size-3.5" />
               </button>
@@ -705,7 +705,7 @@ function MobileMealCard({
                   onToggleLeftover(meal.id, !meal.isLeftover);
                 }}
                 className={cn(
-                  "inline-flex size-7 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
+                  "inline-flex size-9 items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]",
                   meal.isLeftover
                     ? "bg-[var(--color-muted)] text-[var(--color-fg)]"
                     : "text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)]",
@@ -720,7 +720,7 @@ function MobileMealCard({
                   stop(e);
                   onDuplicateLeftover(meal.id);
                 }}
-                className="inline-flex size-7 items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
+                className="inline-flex size-9 items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
               >
                 <CopyPlus className="size-4" />
               </button>
@@ -736,7 +736,7 @@ function MobileMealCard({
               stop(e);
               onReorderUp(meal.id);
             }}
-            className="inline-flex size-7 items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
+            className="inline-flex size-9 items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
           >
             <ChevronUp className="size-4" />
           </button>
@@ -747,7 +747,7 @@ function MobileMealCard({
               stop(e);
               onReorderDown(meal.id);
             }}
-            className="inline-flex size-7 items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
+            className="inline-flex size-9 items-center justify-center rounded-md text-[var(--color-muted-fg)] hover:bg-[var(--color-muted)] hover:text-[var(--color-fg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)]"
           >
             <ChevronDown className="size-4" />
           </button>

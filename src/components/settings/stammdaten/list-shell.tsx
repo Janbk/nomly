@@ -33,6 +33,10 @@ export type ColumnDef<TItem> = {
    *  numbers/booleans numerically, and `null` always lands at the end
    *  regardless of direction (so empty cells don't crowd the top in desc). */
   sortValue?: (item: TItem) => string | number | boolean | null;
+  /** Drop this column from the stacked phone card (the row's edit drawer
+   *  still shows everything). For secondary detail that would otherwise make
+   *  a long list several screens per item. */
+  hideOnMobile?: boolean;
 };
 
 export type { SortState };
@@ -438,8 +442,59 @@ export function ListShell<TItem>({
         </div>
       ) : (
         <div className="overflow-hidden rounded-[var(--radius)] border border-[var(--color-border)]">
-          <table className="w-full text-sm">
-            <thead className="bg-[var(--color-muted)] text-left text-xs uppercase tracking-wide text-[var(--color-muted-fg)]">
+          {/* Phone toolbar: the table header (select-all + sortable column
+              heads) is hidden below md, where the rows render as stacked
+              cards — so its two jobs move here. */}
+          <div className="flex items-center gap-2 border-b border-[var(--color-border)] bg-[var(--color-muted)] px-3 py-1.5 md:hidden">
+            <label className="flex min-h-11 shrink-0 items-center gap-2 text-sm">
+              <Checkbox
+                checked={
+                  someFilteredSelected
+                    ? "indeterminate"
+                    : allFilteredSelected
+                }
+                onCheckedChange={() => toggleSelectAll()}
+                aria-label="Alle auswählen"
+              />
+              Alle
+            </label>
+            {columns.some((c) => c.sortValue !== undefined) ? (
+              <div className="-my-1.5 flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-1.5 [scrollbar-width:none]">
+                <span className="shrink-0 text-xs text-[var(--color-muted-fg)]">
+                  Sortieren:
+                </span>
+                {columns
+                  .filter((c) => c.sortValue !== undefined)
+                  .map((c) => {
+                    const active = sort?.key === c.key;
+                    const Icon = !active
+                      ? null
+                      : sort?.dir === "asc"
+                        ? ArrowUp
+                        : ArrowDown;
+                    return (
+                      <button
+                        key={c.key}
+                        type="button"
+                        onClick={() => toggleSort(c.key)}
+                        aria-pressed={active}
+                        className={cn(
+                          "inline-flex h-9 shrink-0 items-center gap-1 rounded-full border px-3 text-xs",
+                          active
+                            ? "border-[var(--color-accent)] text-[var(--color-fg)]"
+                            : "border-[var(--color-border)] text-[var(--color-muted-fg)]",
+                        )}
+                      >
+                        {c.header}
+                        {Icon ? <Icon className="size-3" /> : null}
+                      </button>
+                    );
+                  })}
+              </div>
+            ) : null}
+          </div>
+          <table className="w-full text-sm max-md:block">
+            <thead className="bg-[var(--color-muted)] text-left text-xs uppercase tracking-wide text-[var(--color-muted-fg)] max-md:hidden">
               <tr>
                 <th className="px-3 py-2 w-10">
                   <Checkbox
@@ -521,7 +576,7 @@ export function ListShell<TItem>({
       </p>
 
       {selectedItems.length > 0 && (
-        <div className="sticky bottom-4 mx-auto flex flex-wrap items-center gap-2 rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 shadow-lg">
+        <div className="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 mx-auto flex flex-wrap items-center gap-2 md:bottom-4 rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-card)] px-3 py-2 shadow-lg">
           <span className="text-sm font-medium">
             {selectedItems.length} ausgewählt
           </span>
@@ -674,7 +729,7 @@ function ListTableBodyImpl<TItem>({
   onToggleRow,
 }: ListTableBodyProps<TItem>) {
   return (
-    <tbody className="divide-y divide-[var(--color-border)]">
+    <tbody className="divide-y divide-[var(--color-border)] max-md:block">
       {filtered.map((item) => {
         const id = idOf(item);
         return (
@@ -721,10 +776,14 @@ function ListTableRowImpl<TItem>({
   onOpenEdit,
   onToggleRow,
 }: ListTableRowProps<TItem>) {
+  // Below md each row is a card: checkbox on the left, the name column as
+  // the title, every other column as a "LABEL value" line underneath.
+  const titleKey = (columns.find((c) => c.key === "name") ?? columns[0])?.key;
   return (
     <tr
       className={cn(
         "hover:bg-[var(--color-muted)] cursor-pointer",
+        "max-md:grid max-md:grid-cols-[2.75rem_minmax(0,1fr)] max-md:py-2 max-md:pr-3",
         selected &&
           "bg-[color-mix(in_srgb,var(--color-accent),transparent_88%)]",
       )}
@@ -734,18 +793,53 @@ function ListTableRowImpl<TItem>({
         onOpenEdit(item);
       }}
     >
-      <td className="px-3 py-2 w-10" data-row-checkbox>
+      <td
+        className="px-3 py-2 w-10 max-md:col-start-1 max-md:flex max-md:min-h-11 max-md:w-auto max-md:items-start max-md:justify-center max-md:p-0 max-md:pt-3 max-md:[grid-row:1/span_30]"
+        data-row-checkbox
+        // The whole cell is the hit area for the small checkbox — on a phone
+        // card it spans the card's full height.
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("button")) return;
+          onToggleRow(id);
+        }}
+      >
         <Checkbox
           checked={selected}
           onCheckedChange={() => onToggleRow(id)}
           aria-label={`${nameOf(item)} auswählen`}
         />
       </td>
-      {columns.map((c) => (
-        <td key={c.key} className={cn("px-3 py-2", c.className)}>
-          {c.cell(item)}
-        </td>
-      ))}
+      {columns.map((c) =>
+        c.key === titleKey ? (
+          <td
+            key={c.key}
+            className={cn(
+              "px-3 py-2",
+              c.className,
+              "max-md:col-start-2 max-md:row-start-1 max-md:block max-md:w-auto max-md:px-0 max-md:py-2 max-md:text-base max-md:font-medium",
+            )}
+          >
+            {c.cell(item)}
+          </td>
+        ) : (
+          <td
+            key={c.key}
+            data-label={c.header}
+            className={cn(
+              "px-3 py-2",
+              c.className,
+              "max-md:col-start-2 max-md:flex max-md:w-auto max-md:min-w-0 max-md:items-start max-md:gap-2 max-md:px-0 max-md:py-0.5",
+              // A cell that renders nothing (e.g. a flag that's off) gets no
+              // empty "LABEL" line on the card.
+              "max-md:[&:has(>div:empty)]:hidden",
+              c.hideOnMobile && "max-md:hidden",
+              "max-md:before:w-24 max-md:before:shrink-0 max-md:before:pt-0.5 max-md:before:text-[0.6875rem] max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-[var(--color-muted-fg)] max-md:before:content-[attr(data-label)]",
+            )}
+          >
+            <div className="min-w-0 max-md:flex-1">{c.cell(item)}</div>
+          </td>
+        ),
+      )}
     </tr>
   );
 }

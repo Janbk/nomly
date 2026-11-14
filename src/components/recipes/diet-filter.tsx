@@ -79,7 +79,7 @@ function Segment({
       aria-checked={active}
       onClick={onClick}
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 pointer-coarse:py-2 text-xs font-medium transition-colors",
         active
           ? "text-white"
           : "text-[var(--color-muted-fg)] hover:text-[var(--color-fg)]",

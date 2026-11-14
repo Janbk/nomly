@@ -48,7 +48,7 @@ export function FavoritesFilter({
         onClick={() => setFav(active ? "" : String(selected ?? fallback ?? ""))}
         title="Nur Favoriten zeigen"
         className={cn(
-          "inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium transition-colors",
+          "inline-flex items-center gap-1.5 px-3 py-1 pointer-coarse:py-2 text-xs font-medium transition-colors",
           active
             ? "bg-[var(--color-danger)] text-white"
             : "text-[var(--color-muted-fg)] hover:text-[var(--color-fg)]",
@@ -65,7 +65,7 @@ export function FavoritesFilter({
           setSelected(id);
           if (active) setFav(String(id));
         }}
-        className="border-l border-[var(--color-border)] bg-[var(--color-card)] px-2 py-1 text-xs text-[var(--color-fg)] focus:outline-none"
+        className="border-l border-[var(--color-border)] bg-[var(--color-card)] px-2 py-1 pointer-coarse:py-2 text-xs text-[var(--color-fg)] focus:outline-none"
       >
         {users.map((u) => (
           <option key={u.id} value={u.id}>

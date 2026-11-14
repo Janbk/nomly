@@ -34,7 +34,7 @@ export function NeedsUpdateFilter({ value, onChange }: Props = {}) {
       onClick={() => setActive(!active)}
       title="Nur Rezepte zeigen, die ein Update brauchen"
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 pointer-coarse:py-2 text-xs font-medium transition-colors",
         active
           ? "border-[var(--color-success)] bg-[var(--color-success)] text-white"
           : "border-[var(--color-border)] text-[var(--color-muted-fg)] hover:text-[var(--color-fg)]",

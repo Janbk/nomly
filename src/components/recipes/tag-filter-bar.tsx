@@ -192,7 +192,7 @@ export function TagFilterBar({ allTags, value, onChange }: Props) {
                     : "Linksklick: einschließen · Rechtsklick: ausschließen"
               }
               className={cn(
-                "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors",
+                "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 pointer-coarse:py-2 text-xs transition-colors",
                 state === "off" &&
                   "border-[var(--color-border)] bg-transparent text-[var(--color-muted-fg)] hover:border-[var(--color-fg)] hover:text-[var(--color-fg)]",
                 state === "include" &&

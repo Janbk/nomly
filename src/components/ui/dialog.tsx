@@ -50,7 +50,7 @@ export function DialogContent({
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none">
+        <DialogPrimitive.Close className="absolute right-1.5 top-[max(0.375rem,env(safe-area-inset-top))] inline-flex size-11 items-center justify-center rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none sm:right-4 sm:top-4 sm:size-auto">
           <X className="size-4" />
           <span className="sr-only">Schließen</span>
         </DialogPrimitive.Close>
@@ -62,7 +62,9 @@ export function DialogContent({
 export function DialogHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex flex-col gap-1.5 px-6 pt-6", className)}
+      // Fullscreen on phones: clear the notch/status bar in a standalone PWA,
+      // and keep the title out from under the close button.
+      className={cn("flex flex-col gap-1.5 px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pr-14 sm:pt-6 sm:pr-6", className)}
       {...props}
     />
   );
@@ -87,7 +89,7 @@ export function DialogFooter({ className, ...props }: React.HTMLAttributes<HTMLD
   return (
     <div
       className={cn(
-        "flex flex-col-reverse gap-2 border-t border-[var(--color-border)] bg-[var(--color-card)] px-6 py-4 sm:flex-row sm:justify-end",
+        "flex flex-col-reverse gap-2 border-t border-[var(--color-border)] bg-[var(--color-card)] px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:pb-4",
         className,
       )}
       {...props}
