@@ -3,7 +3,6 @@
 import * as React from "react";
 import { ChevronDown, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { useRandomize } from "./randomize-context";
 import { DietFilter, type DietChoice } from "./diet-filter";
 import { FavoritesFilter, type FavoriteUserOption } from "./favorites-filter";
 import { NeedsUpdateFilter } from "./needs-update-filter";
@@ -124,14 +123,13 @@ function useFiltersOpen(storageKey: string): [boolean, (open: boolean) => void] 
   return [open, (next) => writeStoredOpen(storageKey, next)];
 }
 
-/** How many filters besides the search are narrowing the list. */
-function activeFilterCount(f: RecipeFilterValue, randomized: boolean): number {
+/** How many of the folded filters (diet, "Update nötig", tags) are set. */
+function activeFilterCount(f: RecipeFilterValue): number {
   return (
     (f.diet !== "all" ? 1 : 0) +
     (f.needsUpdate ? 1 : 0) +
     f.tags.must.length +
-    f.tags.not.length +
-    (randomized ? 1 : 0)
+    f.tags.not.length
   );
 }
 
@@ -216,9 +214,9 @@ function FullRecipeFilterBar({
 }
 
 /**
- * Planner variant: the search stays on screen; diet, "Update nötig",
- * randomize and tags sit behind a "Filter" toggle that shows how many of them
- * are active — so a short screen keeps its height for the recipe list.
+ * Planner variant: the search and the randomize control stay on screen; diet,
+ * "Update nötig" and tags sit behind a "Filter" toggle that shows how many of
+ * them are active — so a short screen keeps its height for the recipe list.
  * Controlled mode only (the planner keeps filter state in React).
  */
 function CollapsibleRecipeFilterBar({
@@ -233,8 +231,7 @@ function CollapsibleRecipeFilterBar({
   storageKey: string;
 }) {
   const [open, setOpen] = useFiltersOpen(storageKey);
-  const randomize = useRandomize();
-  const count = activeFilterCount(value, randomize.active);
+  const count = activeFilterCount(value);
   const regionId = React.useId();
   const patch = (next: Partial<RecipeFilterValue>) =>
     onChange({ ...value, ...next });
@@ -270,15 +267,17 @@ function CollapsibleRecipeFilterBar({
         {count > 0 ? (
           <button
             type="button"
-            onClick={() => {
-              onChange({ ...EMPTY_RECIPE_FILTER, q: value.q });
-              randomize.reset();
-            }}
+            onClick={() => onChange({ ...EMPTY_RECIPE_FILTER, q: value.q })}
             className="h-8 rounded-full px-2 text-xs text-[var(--color-muted-fg)] hover:text-[var(--color-fg)] pointer-coarse:h-10"
           >
             Zurücksetzen
           </button>
         ) : null}
+        {/* Randomize is an action on the list, not a filter to set up — it
+            stays one tap away next to the toggle, folded or not. */}
+        <div className="ml-auto">
+          <RandomizeButton />
+        </div>
       </div>
       <div id={regionId} hidden={!open} className="flex flex-col gap-3 pt-1">
         <div className="flex flex-wrap items-center gap-3">
@@ -287,7 +286,6 @@ function CollapsibleRecipeFilterBar({
             value={value.needsUpdate}
             onChange={(needsUpdate) => patch({ needsUpdate })}
           />
-          <RandomizeButton />
         </div>
         {allTags.length > 0 ? (
           <TagFilterBar
