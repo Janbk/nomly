@@ -2,13 +2,18 @@
 
 import * as React from "react";
 import { CheckCircle2 } from "lucide-react";
+import { requestPopupClose } from "@/lib/embed/close-popup";
 import type { ShoppingItemView } from "@/lib/shopping/items";
 import { StockCheckBody } from "./stock-check-dialog";
 
 /**
  * The stock-check form as a standalone page (Home Assistant embed). The HA
- * popup can't be closed from inside the iframe, so instead of closing, a save
- * shows a confirmation and restarts the form on the updated list.
+ * popup can't be closed from inside the iframe, so "Speichern" (with or
+ * without changes — for the user it means "done") posts `nomly:close-popup`
+ * to the parent frame, which HA answers with `browser_mod.close_popup`. As a
+ * fallback (nobody listening, page opened directly) it also shows a
+ * confirmation and restarts the form on the updated list. A failed save
+ * neither closes nor resets — the error stays.
  */
 export function EmbedStockCheck({
   initialItems,
@@ -39,11 +44,15 @@ export function EmbedStockCheck({
         items={items}
         embedded
         showTitle={showTitle}
-        onClose={() => setNotice("Keine Änderungen.")}
+        onClose={() => {
+          setNotice("Keine Änderungen.");
+          requestPopupClose("stock-check");
+        }}
         onSaved={(updated) => {
           setItems(updated);
           setRound((r) => r + 1);
           setNotice("Gespeichert.");
+          requestPopupClose("stock-check");
         }}
       />
     </main>
