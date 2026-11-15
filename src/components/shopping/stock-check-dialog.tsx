@@ -59,7 +59,7 @@ function initialUnit(item: ShoppingItemView): ComboboxItem | null {
 export function StockCheckDialog({ open, items, onClose, onSaved }: Props) {
   return (
     <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : undefined)}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-2xl">
         {open ? (
           <StockCheckBody items={items} onClose={onClose} onSaved={onSaved} />
         ) : null}
@@ -187,11 +187,13 @@ export function StockCheckBody({
               const isCovered = !isRemoved && covered.has(i.id);
               return (
                 <li key={i.id} className="flex flex-col gap-0.5">
-                  {/* One line from `sm` up. On phones the controls wrap below
-                      the name, so the 44px touch targets of the −/+ stepper
-                      don't squeeze the name to nothing. */}
+                  {/* One line from `sm` up: name | stepper, unit | remove.
+                      On phones the remove button joins the name's line (via
+                      `order`) and stepper + unit wrap below at full width, so
+                      the 44px touch targets don't squeeze the name and the
+                      unit picker keeps room for its full label. */}
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">
-                    <div className="min-w-0 basis-full sm:flex-1 sm:basis-auto">
+                    <div className="order-1 min-w-0 flex-1">
                       <p
                         className={cn(
                           "truncate text-sm",
@@ -213,7 +215,7 @@ export function StockCheckBody({
                         </p>
                       ) : null}
                     </div>
-                    <div className="flex w-full items-center gap-2 sm:w-auto">
+                    <div className="order-3 flex min-w-0 basis-full items-center gap-2 sm:order-2 sm:basis-auto">
                       <div className="flex shrink-0 items-center gap-1">
                         <Button
                           variant="outline"
@@ -233,7 +235,7 @@ export function StockCheckBody({
                             setQty((prev) => ({ ...prev, [i.id]: e.target.value }))
                           }
                           placeholder="Menge"
-                          className="w-16 px-1 text-center"
+                          className="w-12 px-1 text-center"
                           disabled={isRemoved}
                           aria-label={`Auf Lager: ${i.name}`}
                         />
@@ -251,30 +253,34 @@ export function StockCheckBody({
                       <UnitSelect
                         value={units[i.id] ?? null}
                         onChange={(u) => setUnits((prev) => ({ ...prev, [i.id]: u }))}
-                        className="min-w-0 flex-1 sm:w-28 sm:flex-none"
+                        // Phones: the rest of the controls line. From `sm` up a
+                        // fixed column wide enough for the longest unit name
+                        // ("Messerspitze") plus the clear/chevron icons, so
+                        // rows stay aligned.
+                        className="min-w-0 flex-1 sm:w-44 sm:flex-none"
                         disabled={isRemoved}
                       />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="shrink-0"
-                        onClick={() =>
-                          setRemoved((prev) => ({ ...prev, [i.id]: !prev[i.id] }))
-                        }
-                        aria-label={
-                          isRemoved
-                            ? `Entfernen rückgängig: ${i.name}`
-                            : `Von der Liste entfernen: ${i.name}`
-                        }
-                        title={isRemoved ? "Entfernen rückgängig" : "Von der Liste entfernen"}
-                      >
-                        {isRemoved ? (
-                          <Undo2 className="size-4" />
-                        ) : (
-                          <Trash2 className="size-4 text-[var(--color-danger)]" />
-                        )}
-                      </Button>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="order-2 shrink-0 sm:order-3"
+                      onClick={() =>
+                        setRemoved((prev) => ({ ...prev, [i.id]: !prev[i.id] }))
+                      }
+                      aria-label={
+                        isRemoved
+                          ? `Entfernen rückgängig: ${i.name}`
+                          : `Von der Liste entfernen: ${i.name}`
+                      }
+                      title={isRemoved ? "Entfernen rückgängig" : "Von der Liste entfernen"}
+                    >
+                      {isRemoved ? (
+                        <Undo2 className="size-4" />
+                      ) : (
+                        <Trash2 className="size-4 text-[var(--color-danger)]" />
+                      )}
+                    </Button>
                   </div>
                   {isRemoved || isCovered ? (
                     <p className="text-xs text-[var(--color-danger)]">
