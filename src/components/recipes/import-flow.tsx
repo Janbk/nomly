@@ -12,6 +12,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import type { ImportFailure } from "@/lib/recipes/import-failures";
+import { ImportFailureList } from "./import-failure-list";
 import { RecipeForm } from "./recipe-form";
 import {
   emptyIngredient,
@@ -38,6 +40,9 @@ type ImportedRecipeResponse = {
 
 type Props = {
   tagSuggestions: string[];
+  initialFailures: ImportFailure[];
+  /** Prefill this URL and start importing it right away (`?url=…`). */
+  autoImportUrl?: string | null;
 };
 
 function importedToDraft(
@@ -120,22 +125,61 @@ function ImportStats({ draft }: { draft: DraftRecipe }) {
   );
 }
 
-export function ImportFlow({ tagSuggestions }: Props) {
+export function ImportFlow({
+  tagSuggestions,
+  initialFailures,
+  autoImportUrl = null,
+}: Props) {
   const router = useRouter();
   const [url, setUrl] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState<DraftRecipe | null>(null);
   const [mountKey, setMountKey] = React.useState(0);
+  const [failures, setFailures] = React.useState(initialFailures);
 
-  async function runImport() {
+  // Every import attempt records/clears its URL server-side; mirror that.
+  async function reloadFailures() {
+    try {
+      const res = await fetch("/api/v1/recipes/import-failures");
+      if (!res.ok) return;
+      const data = (await res.json()) as { failures: ImportFailure[] };
+      setFailures(data.failures);
+    } catch {
+      // Best-effort: the list is just stale until the next reload.
+    }
+  }
+
+  async function removeFailure(id: number) {
+    const res = await fetch(`/api/v1/recipes/import-failures/${id}`, {
+      method: "DELETE",
+    });
+    if (res.ok || res.status === 404) {
+      setFailures((fs) => fs.filter((f) => f.id !== id));
+    }
+  }
+
+  // Run the `?url=` import once on mount (guarded against StrictMode's
+  // double effect).
+  const autoImportStarted = React.useRef(false);
+  React.useEffect(() => {
+    if (!autoImportUrl || autoImportStarted.current) return;
+    autoImportStarted.current = true;
+    // Drop the param so a reload doesn't fire the import again.
+    window.history.replaceState(null, "", "/rezepte/importieren");
+    void runImport(autoImportUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only
+  }, []);
+
+  async function runImport(target: string = url) {
+    setUrl(target);
     setLoading(true);
     setError(null);
     try {
       const res = await fetch("/api/v1/recipes/import-url", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
+        body: JSON.stringify({ url: target.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -147,6 +191,7 @@ export function ImportFlow({ tagSuggestions }: Props) {
       setError(e instanceof Error ? e.message : "Import fehlgeschlagen.");
     } finally {
       setLoading(false);
+      void reloadFailures();
     }
   }
 
@@ -230,7 +275,7 @@ export function ImportFlow({ tagSuggestions }: Props) {
           </Button>
           <Button
             type="button"
-            onClick={runImport}
+            onClick={() => void runImport()}
             disabled={loading || url.trim().length === 0}
           >
             {loading ? (
@@ -242,6 +287,12 @@ export function ImportFlow({ tagSuggestions }: Props) {
           </Button>
         </div>
       </div>
+      <ImportFailureList
+        failures={failures}
+        busy={loading}
+        onRetry={(u) => void runImport(u)}
+        onRemove={removeFailure}
+      />
     </div>
   );
 }

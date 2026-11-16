@@ -4,12 +4,21 @@ import { asc } from "drizzle-orm";
 import { ImportFlow } from "@/components/recipes/import-flow";
 import { db } from "@/db";
 import { tag } from "@/db/schema";
+import { listImportFailures } from "@/lib/recipes/import-failures";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Rezept importieren" };
 
-export default function ImportRecipePage() {
+export default async function ImportRecipePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ url?: string | string[] }>;
+}) {
+  // `?url=…` (from the dashboard's failed-imports card): prefill and run.
+  const { url } = await searchParams;
+  const autoImportUrl = typeof url === "string" && url.trim() ? url.trim() : null;
+
   const tagSuggestions = db
     .select({ name: tag.name })
     .from(tag)
@@ -37,7 +46,11 @@ export default function ImportRecipePage() {
         </p>
       </div>
       <div className="mt-6">
-        <ImportFlow tagSuggestions={tagSuggestions} />
+        <ImportFlow
+          tagSuggestions={tagSuggestions}
+          initialFailures={listImportFailures()}
+          autoImportUrl={autoImportUrl}
+        />
       </div>
     </>
   );
