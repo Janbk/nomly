@@ -77,6 +77,27 @@ export const reparseMute = sqliteTable(
 );
 
 /**
+ * URL imports that failed ("Rezept importieren"). One row per URL: a repeated
+ * failure bumps `attempts` and refreshes the error; a later successful import
+ * of the same URL removes the row. Collects the pages the importer can't
+ * handle yet, so they can be fixed and retried (UI + /api/v1).
+ */
+export const importFailure = sqliteTable(
+  "import_failure",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    url: text("url").notNull(),
+    /** ImportError code ("fetch" | "parse" | "noRecipe" | "image") or "unknown". */
+    errorCode: text("error_code").notNull(),
+    errorMessage: text("error_message").notNull(),
+    attempts: integer("attempts").notNull().default(1),
+    createdAt: integer("created_at").notNull().default(now),
+    lastAttemptAt: integer("last_attempt_at").notNull().default(now),
+  },
+  (t) => [uniqueIndex("import_failure_url_idx").on(t.url)],
+);
+
+/**
  * Advance reminder attached to a recipe ("soak the chickpeas the evening
  * before"). Relative to the day the recipe is planned: `days_before` = 0 is the
  * meal day itself, 1 the day before, …; `hour` is the local hour (0–23) the

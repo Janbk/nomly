@@ -18,6 +18,8 @@ import { UpcomingMealsCard } from "@/components/dashboard/upcoming-meals-card";
 import { ShoppingSummaryLive } from "@/components/dashboard/shopping-summary-live";
 import { TopRecipesCard } from "@/components/dashboard/top-recipes-card";
 import { NeedsUpdateCard } from "@/components/dashboard/needs-update-card";
+import { ImportFailuresCard } from "@/components/dashboard/import-failures-card";
+import { listImportFailures } from "@/lib/recipes/import-failures";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +54,13 @@ export default function Home() {
     note: r.needsUpdateNote,
   }));
 
+  const importFailures = listImportFailures().map((f) => ({
+    id: f.id,
+    url: f.url,
+    errorMessage: f.errorMessage,
+    attempts: f.attempts,
+  }));
+
   return (
     <>
       <DashboardRefresher />
@@ -79,6 +88,7 @@ export default function Home() {
           />
           <TopRecipesCard recipes={topRecipes} />
           <NeedsUpdateCard recipes={needsUpdateRecipes} />
+          <ImportFailuresCard failures={importFailures} />
         </div>
       </div>
     </>
