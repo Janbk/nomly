@@ -33,6 +33,7 @@ import type {
 } from "@/lib/shopping/items";
 import { AmountList } from "./amount-list";
 import { formatQty } from "@/lib/shopping/format";
+import { formatMealDate } from "@/lib/shopping/recipe-days";
 import { cn } from "@/lib/cn";
 
 type Props = {
@@ -483,7 +484,7 @@ function SourceLine({
         />
       ) : null}
       <span className="font-medium text-[var(--color-fg)]/80">{source.recipeTitle}</span>
-      {source.mealDate ? <span>({formatDate(source.mealDate)})</span> : null}
+      {source.mealDate ? <span>({formatMealDate(source.mealDate)})</span> : null}
       <AmountSegment
         quantity={source.contributedQuantity}
         unitName={source.contributedUnit}
@@ -605,16 +606,3 @@ function MarkUpdateMenuEntry({
   );
 }
 
-function formatDate(iso: string): string {
-  const dt = new Date(`${iso}T00:00:00Z`);
-  const weekday = dt.toLocaleDateString("de-DE", {
-    weekday: "short",
-    timeZone: "UTC",
-  });
-  const dm = dt.toLocaleDateString("de-DE", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: "UTC",
-  });
-  return `${weekday}, ${dm}`;
-}
