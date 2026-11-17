@@ -97,10 +97,10 @@ export function ShoppingItemRow({
   // all-unspecified case stays exactly as it was.
   const flagUnspecified = item.amounts.some((a) => a.quantity != null);
 
-  // Touch swipes (phones; mouse/keyboard keep the menu): right past
-  // CHECK_TRIGGER checks off without a purchase on release, left past
-  // SKIP_REVEAL rests open on the "Heute nicht da" button. Rows that can't do
-  // an action don't travel in that direction.
+  // Touch swipes (phones; mouse/keyboard keep the menu): released past
+  // SWIPE_TRIGGER, right checks off without a purchase and left marks "Heute
+  // nicht da" — no confirming tap. Rows that can't do an action don't travel
+  // in that direction.
   const canCheckWithoutPurchase = !item.checked && trailingAction == null;
   const canSkip =
     !item.checked &&
@@ -110,6 +110,9 @@ export function ShoppingItemRow({
     maxRight: canCheckWithoutPurchase ? MAX_RIGHT : 0,
     maxLeft: canSkip ? -MAX_LEFT : 0,
     onSwipeRight: () => onCheckWithoutPurchase(item),
+    onSwipeLeft: () => {
+      if (activeSupermarketId != null) void onSkipToday(item, activeSupermarketId);
+    },
   });
 
   return (
@@ -120,7 +123,7 @@ export function ShoppingItemRow({
         style={{ opacity: swipe.dx > 0 ? 1 : 0 }}
         className={cn(
           "absolute inset-0 flex items-center gap-2 pl-4 text-sm font-medium transition-colors",
-          swipe.dx >= CHECK_TRIGGER
+          swipe.dx >= SWIPE_TRIGGER
             ? "bg-[var(--color-accent)] text-[var(--color-accent-fg)]"
             : "bg-[var(--color-muted)] text-[var(--color-muted-fg)]",
         )}
@@ -128,28 +131,21 @@ export function ShoppingItemRow({
         <CheckCheck className="size-5" />
         Erledigt, nicht gekauft
       </div>
-      {/* Left-swipe action, under the right edge. Tapping it is the action —
-          the deliberate swipe is the confirmation. */}
-      <button
-        type="button"
-        onClick={() => {
-          swipe.close();
-          if (activeSupermarketId != null) void onSkipToday(item, activeSupermarketId);
-        }}
-        style={{
-          width: SKIP_OPEN,
-          opacity: swipe.dx < 0 ? 1 : 0,
-          pointerEvents: swipe.dx <= -SKIP_REVEAL ? "auto" : "none",
-        }}
-        tabIndex={swipe.dx <= -SKIP_REVEAL ? 0 : -1}
-        // Only part of the page once swiped open; the row menu is the
-        // always-available path for keyboards and screen readers.
-        aria-hidden={swipe.dx > -SKIP_REVEAL}
-        className="absolute inset-y-0 right-0 flex flex-col items-center justify-center gap-1 bg-[var(--color-warning)] px-2 text-center text-xs font-medium leading-tight text-black"
+      {/* Left-swipe hint, under the right edge. Keyboards and screen readers
+          use the row menu instead. */}
+      <div
+        aria-hidden
+        style={{ opacity: swipe.dx < 0 ? 1 : 0 }}
+        className={cn(
+          "absolute inset-0 flex items-center justify-end gap-2 pr-4 text-sm font-medium transition-colors",
+          swipe.dx <= -SWIPE_TRIGGER
+            ? "bg-[var(--color-warning)] text-black"
+            : "bg-[var(--color-muted)] text-[var(--color-muted-fg)]",
+        )}
       >
-        <PackageX className="size-5" />
         Heute nicht da
-      </button>
+        <PackageX className="size-5" />
+      </div>
       <div
         role="button"
         tabIndex={0}
@@ -166,7 +162,7 @@ export function ShoppingItemRow({
           touchAction: "pan-y",
         }}
         onClick={() => {
-          // A click trailing a swipe isn't a tap; a tap on an open row closes it.
+          // A click trailing a swipe isn't a tap.
           if (swipe.consumeClick()) return;
           onToggle(item);
         }}
@@ -344,32 +340,31 @@ export function ShoppingItemRow({
   );
 }
 
-const CHECK_TRIGGER = 80;
+const SWIPE_TRIGGER = 80;
 const MAX_RIGHT = 120;
-const SKIP_REVEAL = 48;
-const SKIP_OPEN = 96;
 const MAX_LEFT = 120;
 const AXIS_LOCK = 6;
 
 /**
  * Horizontal swipe state for one row, after the planner's MobileMealCard:
- * axis-locked (vertical drags stay page scrolls), right past CHECK_TRIGGER
- * fires `onSwipeRight` on release and snaps back, left past SKIP_REVEAL rests
- * open at -SKIP_OPEN. Travel is clamped to [maxLeft, maxRight].
+ * axis-locked (vertical drags stay page scrolls); released past SWIPE_TRIGGER
+ * in either direction it fires that side's action and snaps back. Travel is
+ * clamped to [maxLeft, maxRight].
  */
 function useRowSwipe({
   maxRight,
   maxLeft,
   onSwipeRight,
+  onSwipeLeft,
 }: {
   maxRight: number;
   maxLeft: number;
   onSwipeRight: () => void;
+  onSwipeLeft: () => void;
 }) {
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const startRef = useRef<{ x: number; y: number } | null>(null);
-  const baseRef = useRef(0);
   const axisRef = useRef<"none" | "h" | "v">("none");
   const movedRef = useRef(false);
   // Mirror of `dx` so touchend decides on the live offset, not a stale closure.
@@ -382,7 +377,6 @@ function useRowSwipe({
   function onTouchStart(e: TouchEvent) {
     if (e.touches.length !== 1) return;
     startRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    baseRef.current = clamp(dxRef.current);
     axisRef.current = "none";
     movedRef.current = false;
     setDragging(true);
@@ -398,7 +392,7 @@ function useRowSwipe({
     }
     if (axisRef.current !== "h") return;
     movedRef.current = true;
-    setOffset(Math.max(maxLeft, Math.min(maxRight, baseRef.current + ddx)));
+    setOffset(Math.max(maxLeft, Math.min(maxRight, ddx)));
   }
   function onTouchEnd() {
     setDragging(false);
@@ -406,36 +400,25 @@ function useRowSwipe({
     startRef.current = null;
     if (!wasHorizontal) return;
     const cur = dxRef.current;
-    if (cur >= CHECK_TRIGGER) {
-      setOffset(0);
-      onSwipeRight();
-    } else if (cur <= -SKIP_REVEAL) {
-      setOffset(-SKIP_OPEN);
-    } else {
-      setOffset(0);
-    }
+    setOffset(0);
+    if (cur >= SWIPE_TRIGGER) onSwipeRight();
+    else if (cur <= -SWIPE_TRIGGER) onSwipeLeft();
   }
-  // An action that became unavailable while the row rested open (store
-  // cleared, went offline, item checked elsewhere) closes it on the spot.
-  const clamp = (v: number) => Math.max(maxLeft, Math.min(maxRight, v));
 
-  /** True when the click should be swallowed (it ended a swipe, or closed an
-   *  open row). */
+  /** True when the click should be swallowed (it ended a swipe). */
   function consumeClick(): boolean {
-    const swallow = movedRef.current || clamp(dxRef.current) !== 0;
+    const swallow = movedRef.current;
     movedRef.current = false;
-    if (dxRef.current !== 0) setOffset(0);
     return swallow;
   }
 
   return {
-    dx: clamp(dx),
+    dx,
     dragging,
     onTouchStart,
     onTouchMove,
     onTouchEnd,
     consumeClick,
-    close: () => setOffset(0),
   };
 }
 

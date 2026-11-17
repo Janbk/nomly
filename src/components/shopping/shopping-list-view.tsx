@@ -816,11 +816,9 @@ export function ShoppingListView({
                 ) : null}
                 {grouped.openGroups.map((group) => (
                   <section key={group.key} className="flex flex-col gap-2">
-                    {group.label != null ? (
-                      <h2 className="text-xs font-medium uppercase tracking-wider text-[var(--color-muted-fg)]">
-                        {group.label}
-                      </h2>
-                    ) : null}
+                    <h2 className="text-xs font-medium uppercase tracking-wider text-[var(--color-muted-fg)]">
+                      {group.label}
+                    </h2>
                     <ul className="flex flex-col divide-y divide-[var(--color-border)] overflow-hidden rounded-[var(--radius)] border border-[var(--color-border)] bg-[var(--color-card)]">
                       {group.items.map((i) => renderRow(i))}
                     </ul>

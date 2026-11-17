@@ -12,13 +12,15 @@ export type SupermarketSummary = {
 
 export type ShoppingGroup = {
   key: string;
-  /** Section heading; null for the single flat group of the learned order. */
-  label: string | null;
+  /** Section heading: the category name. In learned order a category the
+   *  walk visits more than once heads several sections. */
+  label: string;
   items: ShoppingItemView[];
 };
 
 /** "category": aisle groups by the store's category order (the default).
- *  "learned": one flat list in the store's learned check-off order. */
+ *  "learned": the store's learned check-off order, cut into a new category
+ *  section wherever the category changes. */
 export type ShoppingSortMode = "category" | "learned";
 
 export type GroupOptions = {
@@ -82,10 +84,21 @@ const byName = (a: ShoppingItemView, b: ShoppingItemView) =>
   a.name.localeCompare(b.name, "de", { sensitivity: "base" });
 
 /**
- * Sorts open items into the store's learned walking order. Key, in order of
- * preference: the article's own learned score; its category's learned score;
- * after everything learned, the category's position in the store's configured
- * order; uncategorized articles without a score last. Ties by name.
+ * Sorts open items into the store's learned walking order.
+ *
+ *   1. Articles with their own learned score at this store are placed by it.
+ *   2. An article without one, whose category has no own-scored article on
+ *      the list but a learned category score, is placed by that score.
+ *   3. An article never bought here whose category already shows up on the
+ *      list (via an own-scored article) joins that category's first run.
+ *   4. What is left (nothing learned at all) is slotted in by the store's
+ *      configured category order: right after the first run of the nearest
+ *      earlier configured category on the list, else before the first run of
+ *      the nearest later one, else at the end. Categories the store doesn't
+ *      configure follow; uncategorized articles go last.
+ *
+ * Ties by name. The result is flat; {@link runsByCategory} cuts it into
+ * sections.
  */
 function sortByLearnedOrder(
   items: ShoppingItemView[],
@@ -98,26 +111,119 @@ function sortByLearnedOrder(
   const categoryScore = new Map(
     order.categories.map((e) => [e.categoryId, e.score]),
   );
-  const configured = [...store.categories].sort(
-    (a, b) => a.sortOrder - b.sortOrder,
-  );
-  const configuredRank = new Map(
-    configured.map((c, i) => [c.categoryId, (i + 1) / (configured.length + 1)]),
-  );
-  const key = (item: ShoppingItemView): number => {
-    const own = ingredientScore.get(item.refId);
-    if (own != null) return own;
-    if (item.categoryId != null) {
-      const cat = categoryScore.get(item.categoryId);
-      if (cat != null) return cat;
-      const rank = configuredRank.get(item.categoryId);
-      if (rank != null) return 1 + rank;
+  const configured = [...store.categories]
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((c) => c.categoryId);
+  const configuredRank = new Map(configured.map((id, i) => [id, i]));
+
+  // Categories that are on the list through an article with its own score.
+  const anchored = new Set<number>();
+  for (const item of items) {
+    if (item.categoryId != null && ingredientScore.has(item.refId)) {
+      anchored.add(item.categoryId);
     }
-    return 3;
+  }
+
+  const placed: Array<{ item: ShoppingItemView; key: number }> = [];
+  const joining: ShoppingItemView[] = [];
+  const unplaced: ShoppingItemView[] = [];
+  for (const item of items) {
+    const own = ingredientScore.get(item.refId);
+    const cat = item.categoryId;
+    if (own != null) placed.push({ item, key: own });
+    else if (cat != null && anchored.has(cat)) joining.push(item);
+    else if (cat != null && categoryScore.has(cat)) {
+      placed.push({ item, key: categoryScore.get(cat)! });
+    } else unplaced.push(item);
+  }
+  placed.sort((a, b) => a.key - b.key || byName(a.item, b.item));
+  const seq = placed.map((e) => e.item);
+
+  const firstIndex = (categoryId: number) =>
+    seq.findIndex((i) => i.categoryId === categoryId);
+  /** Index just past the first run of `categoryId` in `seq`, or -1. */
+  const endOfFirstRun = (categoryId: number): number => {
+    const start = firstIndex(categoryId);
+    if (start < 0) return -1;
+    let end = start + 1;
+    while (end < seq.length && seq[end].categoryId === categoryId) end += 1;
+    return end;
   };
-  const keyed = items.map((item) => ({ item, key: key(item) }));
-  keyed.sort((a, b) => a.key - b.key || byName(a.item, b.item));
-  return keyed.map((e) => e.item);
+
+  for (const [cat, group] of groupByCategory(joining)) {
+    seq.splice(endOfFirstRun(cat!), 0, ...group);
+  }
+
+  const rest = groupByCategory(unplaced);
+  const restCats = [...rest.keys()].sort(
+    (a, b) =>
+      (a != null ? configuredRank.get(a) ?? Infinity : Infinity) -
+      (b != null ? configuredRank.get(b) ?? Infinity : Infinity),
+  );
+  const tail: ShoppingItemView[] = [];
+  for (const cat of restCats) {
+    const group = rest.get(cat)!;
+    const rank = cat != null ? configuredRank.get(cat) : undefined;
+    if (rank == null) {
+      tail.push(...group);
+      continue;
+    }
+    let at = -1;
+    for (let r = rank - 1; r >= 0 && at < 0; r -= 1) {
+      at = endOfFirstRun(configured[r]);
+    }
+    for (let r = rank + 1; r < configured.length && at < 0; r += 1) {
+      at = firstIndex(configured[r]);
+    }
+    seq.splice(at < 0 ? seq.length : at, 0, ...group);
+  }
+  // Categories the store doesn't configure (by name), then uncategorized.
+  tail.sort((a, b) => {
+    if (a.categoryId == null && b.categoryId != null) return 1;
+    if (a.categoryId != null && b.categoryId == null) return -1;
+    return (
+      (a.categoryName ?? "").localeCompare(b.categoryName ?? "", "de", {
+        sensitivity: "base",
+      }) || byName(a, b)
+    );
+  });
+  seq.push(...tail);
+  return seq;
+}
+
+/** Items bucketed by category (insertion order), each bucket sorted by name. */
+function groupByCategory(
+  items: ShoppingItemView[],
+): Map<number | null, ShoppingItemView[]> {
+  const map = new Map<number | null, ShoppingItemView[]>();
+  for (const item of items) {
+    const arr = map.get(item.categoryId) ?? [];
+    arr.push(item);
+    map.set(item.categoryId, arr);
+  }
+  for (const arr of map.values()) arr.sort(byName);
+  return map;
+}
+
+/**
+ * Cuts a flat, ordered list into sections of consecutive same-category
+ * articles. A category the walking order visits twice gets two sections.
+ */
+function runsByCategory(items: ShoppingItemView[]): ShoppingGroup[] {
+  const groups: ShoppingGroup[] = [];
+  for (const item of items) {
+    const last = groups[groups.length - 1];
+    if (last && last.items[0].categoryId === item.categoryId) {
+      last.items.push(item);
+    } else {
+      groups.push({
+        key: `learned-${groups.length}-${item.categoryId ?? "none"}`,
+        label: item.categoryName ?? "Ohne Kategorie",
+        items: [item],
+      });
+    }
+  }
+  return groups;
 }
 
 /**
@@ -188,7 +294,7 @@ export function groupShoppingItems(
     }
   }
 
-  // Learned order: one flat, headerless group in the store's walking order.
+  // Learned order: the store's walking order, sectioned by category runs.
   // Falls back to the category groups when the store has nothing learned yet.
   const learned =
     options.sortMode === "learned" &&
@@ -240,9 +346,7 @@ export function groupShoppingItems(
 
   const openGroups: ShoppingGroup[] =
     learned && sm
-      ? open.length > 0
-        ? [{ key: "learned", label: null, items: sortByLearnedOrder(open, sm, learned) }]
-        : []
+      ? runsByCategory(sortByLearnedOrder(open, sm, learned))
       : ordered.map((b) => ({
           key: `cat-${b.categoryId ?? "none"}`,
           label: b.categoryName,
