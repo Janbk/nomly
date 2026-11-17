@@ -241,16 +241,145 @@ describe("groupShoppingItems", () => {
       item({ id: 5, refId: 50, name: "Birne", categoryId: 1, categoryName: "Obst" }),
     ];
 
-    it("returns one flat, headerless group: own score, then category score, then store order, uncategorized last", () => {
+    const order = (r: ReturnType<typeof groupShoppingItems>) =>
+      r.openGroups.map((g) => [g.label, g.items.map((i) => i.name)]);
+
+    it("sections the walking order by category; unlearned articles join their category's first run", () => {
       const result = groupShoppingItems(items, learnedStore.id, [learnedStore], {
         sortMode: "learned",
       });
       expect(result.learnedOrderApplied).toBe(true);
-      expect(result.openGroups).toHaveLength(1);
-      expect(result.openGroups[0].label).toBeNull();
-      // Milch 0.1, Brot 0.5 (category), Apfel 0.9, Birne (unlearned, store
-      // order of Obst), Batterien (uncategorized, no score).
-      expect(result.openGroups[0].items.map((i) => i.id)).toEqual([3, 2, 1, 5, 4]);
+      // Milch 0.1 (Brot, never bought here, joins it), Apfel 0.9 (Birne joins),
+      // Batterien (uncategorized, no score) last.
+      expect(order(result)).toEqual([
+        ["Backwaren", ["Milch", "Brot"]],
+        ["Obst", ["Apfel", "Birne"]],
+        ["Ohne Kategorie", ["Batterien"]],
+      ]);
+    });
+
+    it("repeats a category heading when the walk returns to it", () => {
+      const s: SupermarketSummary = {
+        ...store,
+        learnedOrder: {
+          ingredients: [
+            { ingredientId: 10, score: 0.1 },
+            { ingredientId: 30, score: 0.5 },
+            { ingredientId: 50, score: 0.9 },
+          ],
+          categories: [],
+        },
+      };
+      const result = groupShoppingItems(
+        [
+          item({ id: 1, refId: 10, name: "Apfel", categoryId: 1, categoryName: "Obst" }),
+          item({ id: 3, refId: 30, name: "Milch", categoryId: 2, categoryName: "Backwaren" }),
+          item({ id: 5, refId: 50, name: "Birne", categoryId: 1, categoryName: "Obst" }),
+        ],
+        s.id,
+        [s],
+        { sortMode: "learned" },
+      );
+      expect(order(result)).toEqual([
+        ["Obst", ["Apfel"]],
+        ["Backwaren", ["Milch"]],
+        ["Obst", ["Birne"]],
+      ]);
+      expect(new Set(result.openGroups.map((g) => g.key)).size).toBe(3);
+    });
+
+    it("places a category score-only article by that score", () => {
+      const s: SupermarketSummary = {
+        ...store,
+        categories: [
+          { categoryId: 1, sortOrder: 0 },
+          { categoryId: 2, sortOrder: 1 },
+          { categoryId: 3, sortOrder: 2 },
+        ],
+        learnedOrder: {
+          ingredients: [
+            { ingredientId: 10, score: 0.2 },
+            { ingredientId: 30, score: 0.8 },
+          ],
+          categories: [{ categoryId: 2, score: 0.5 }],
+        },
+      };
+      const result = groupShoppingItems(
+        [
+          item({ id: 1, refId: 10, name: "Apfel", categoryId: 1, categoryName: "Obst" }),
+          item({ id: 2, refId: 20, name: "Brot", categoryId: 2, categoryName: "Backwaren" }),
+          item({ id: 3, refId: 30, name: "Käse", categoryId: 3, categoryName: "Käse" }),
+        ],
+        s.id,
+        [s],
+        { sortMode: "learned" },
+      );
+      expect(order(result)).toEqual([
+        ["Obst", ["Apfel"]],
+        ["Backwaren", ["Brot"]],
+        ["Käse", ["Käse"]],
+      ]);
+    });
+
+    it("slots a category with no learned data in by the store's category order", () => {
+      const s: SupermarketSummary = {
+        ...store,
+        categories: [
+          { categoryId: 1, sortOrder: 0 },
+          { categoryId: 2, sortOrder: 1 },
+          { categoryId: 3, sortOrder: 2 },
+          { categoryId: 4, sortOrder: 3 },
+        ],
+        learnedOrder: {
+          // Learned walk: Käse (3) first, then Obst (1).
+          ingredients: [
+            { ingredientId: 30, score: 0.1 },
+            { ingredientId: 10, score: 0.9 },
+          ],
+          categories: [],
+        },
+      };
+      const result = groupShoppingItems(
+        [
+          item({ id: 1, refId: 10, name: "Apfel", categoryId: 1, categoryName: "Obst" }),
+          item({ id: 2, refId: 20, name: "Brot", categoryId: 2, categoryName: "Backwaren" }),
+          item({ id: 3, refId: 30, name: "Gouda", categoryId: 3, categoryName: "Käse" }),
+          item({ id: 4, refId: 40, name: "Seife", categoryId: 4, categoryName: "Drogerie" }),
+          item({ id: 5, refId: 50, name: "Zeug", categoryId: null }),
+        ],
+        s.id,
+        [s],
+        { sortMode: "learned" },
+      );
+      // Backwaren follows Obst (its configured predecessor), Drogerie follows
+      // Käse; uncategorized last.
+      expect(order(result)).toEqual([
+        ["Käse", ["Gouda"]],
+        ["Drogerie", ["Seife"]],
+        ["Obst", ["Apfel"]],
+        ["Backwaren", ["Brot"]],
+        ["Ohne Kategorie", ["Zeug"]],
+      ]);
+    });
+
+    it("puts an unlearned first-configured category before its successor", () => {
+      const s: SupermarketSummary = {
+        ...store,
+        learnedOrder: { ingredients: [{ ingredientId: 20, score: 0.5 }], categories: [] },
+      };
+      const result = groupShoppingItems(
+        [
+          item({ id: 1, refId: 10, name: "Apfel", categoryId: 1, categoryName: "Obst" }),
+          item({ id: 2, refId: 20, name: "Brot", categoryId: 2, categoryName: "Backwaren" }),
+        ],
+        s.id,
+        [s],
+        { sortMode: "learned" },
+      );
+      expect(order(result)).toEqual([
+        ["Obst", ["Apfel"]],
+        ["Backwaren", ["Brot"]],
+      ]);
     });
 
     it("keeps the category groups when the mode is off", () => {

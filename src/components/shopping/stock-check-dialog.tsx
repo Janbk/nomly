@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
 import type { ShoppingItemView } from "@/lib/shopping/items";
 import { stepStockInput } from "@/lib/shopping/stock-step";
+import { formatMealDate, recipeDays } from "@/lib/shopping/recipe-days";
 import { previewStockCoverage, setStockBatch } from "./api";
 
 type Props = {
@@ -214,6 +215,19 @@ export function StockCheckBody({
                           />
                         </p>
                       ) : null}
+                      {recipeDays(i.sources).map((r, idx) => (
+                        <p
+                          key={idx}
+                          className="text-xs text-[var(--color-muted-fg)]"
+                        >
+                          <span className="font-medium text-[var(--color-fg)]/80">
+                            {r.title}
+                          </span>
+                          {r.dates.length > 0
+                            ? ` · ${r.dates.map(formatMealDate).join(" · ")}`
+                            : null}
+                        </p>
+                      ))}
                     </div>
                     <div className="order-3 flex min-w-0 basis-full items-center gap-2 sm:order-2 sm:basis-auto">
                       <div className="flex shrink-0 items-center gap-1">
