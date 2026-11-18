@@ -311,6 +311,32 @@ export const ingredientAlias = sqliteTable("ingredient_alias", {
 });
 
 /**
+ * Learned substitutions: the user replaced `from_ingredient_id` with
+ * `to_ingredient_id` ("Ersetzen" on a shopping-list row) `uses` times. One row
+ * per directed pair, bumped on every replacement — whether it was a one-off
+ * list swap or written into recipes. Feeds the "similar ingredients"
+ * suggestions (lib/ingredients/similar.ts) so pairs the household actually
+ * swaps float to the top. Deleting either ingredient drops the row.
+ */
+export const ingredientSubstitution = sqliteTable(
+  "ingredient_substitution",
+  {
+    fromIngredientId: integer("from_ingredient_id")
+      .notNull()
+      .references(() => ingredient.id, { onDelete: "cascade" }),
+    toIngredientId: integer("to_ingredient_id")
+      .notNull()
+      .references(() => ingredient.id, { onDelete: "cascade" }),
+    uses: integer("uses").notNull().default(1),
+    lastUsedAt: integer("last_used_at").notNull().default(now),
+  },
+  (t) => [
+    primaryKey({ columns: [t.fromIngredientId, t.toIngredientId] }),
+    index("ingredient_substitution_to_idx").on(t.toIngredientId),
+  ],
+);
+
+/**
  * Per-ingredient unit conversion edge: `1 from_unit = factor × to_unit`.
  * Together with each unit's global dimension factor these form a graph the
  * shopping aggregator walks (see src/lib/units/convert.ts): contributions

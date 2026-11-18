@@ -9,6 +9,7 @@ import {
   MoreVertical,
   PackageX,
   Pencil,
+  Replace,
   Tags,
   Trash2,
   Wrench,
@@ -57,6 +58,9 @@ type Props = {
   /** Opens the "Update vormerken" dialog (optional reason; recipe picker when
    *  the item comes from more than one recipe). */
   onRequestMarkRecipeUpdate: (item: ShoppingItemView) => void;
+  /** Opens the "Ersetzen" dialog (pick another article, then decide per
+   *  recipe). Only offered on open entries. */
+  onRequestReplace: (item: ShoppingItemView) => void;
   /** When true, actions that need the server right away (edit, delete, …) are
    *  disabled. Check-off, skip and unavailable go through the offline queue. */
   disabledOffline?: boolean;
@@ -78,6 +82,7 @@ export function ShoppingItemRow({
   onToggleUnavailable,
   onSkipToday,
   onRequestMarkRecipeUpdate,
+  onRequestReplace,
   disabledOffline = false,
   trailingAction,
 }: Props) {
@@ -291,6 +296,15 @@ export function ShoppingItemRow({
                 <Tags className="mr-2 size-4" />
                 Artikel bearbeiten
               </DropdownMenuItem>
+              {!item.checked ? (
+                <DropdownMenuItem
+                  onClick={() => onRequestReplace(item)}
+                  disabled={disabledOffline}
+                >
+                  <Replace className="mr-2 size-4" />
+                  Ersetzen …
+                </DropdownMenuItem>
+              ) : null}
               <RecipeMenuEntry sources={item.sources} onPreview={onPreviewRecipe} />
               <MarkUpdateMenuEntry
                 sources={item.sources}
