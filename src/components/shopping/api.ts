@@ -7,6 +7,10 @@ import type {
 import type { PreviewMeal } from "@/lib/shopping/preview";
 import type { StaplePreviewGroup } from "@/lib/staples/preview";
 import type { DueSoonPreview } from "@/lib/shopping/due-soon";
+import type { SimilarIngredient } from "@/lib/ingredients/similar";
+import type { ReplaceRecipeMode } from "@/lib/shopping/replace";
+
+export type { SimilarIngredient, ReplaceRecipeMode };
 
 async function jsonOrThrow(res: Response): Promise<unknown> {
   if (!res.ok) {
@@ -438,4 +442,36 @@ export async function setUnavailable(
     { method: "DELETE" },
   );
   await jsonOrThrow(res);
+}
+
+/** Articles likely to stand in for `ingredientId` (the "Ersetzen" picker). */
+export async function fetchSimilarIngredients(
+  ingredientId: number,
+): Promise<SimilarIngredient[]> {
+  const res = await fetch(`/api/v1/ingredients/similar?id=${ingredientId}`, {
+    cache: "no-store",
+  });
+  const data = (await jsonOrThrow(res)) as { items: SimilarIngredient[] };
+  return data.items;
+}
+
+/** "Ersetzen": swap the entry's article, deciding per recipe what happens. */
+export async function replaceItemIngredient(
+  itemId: number,
+  input: {
+    newIngredientId: number;
+    recipes: Array<{ recipeId: number; mode: ReplaceRecipeMode }>;
+    others: "replace" | "keep";
+  },
+): Promise<{ newItemId: number | null; oldItemRemoved: boolean; changedRecipeIds: number[] }> {
+  const res = await fetch(`/api/v1/shopping/items/${itemId}/replace`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return (await jsonOrThrow(res)) as {
+    newItemId: number | null;
+    oldItemRemoved: boolean;
+    changedRecipeIds: number[];
+  };
 }

@@ -36,6 +36,7 @@ import { countNeededItemsPerSupermarket } from "@/lib/shopping/supermarket-avail
 import { resolveSupermarketDeepLink } from "@/lib/shopping/supermarket-deep-link";
 import { ShoppingItemRow } from "./shopping-item-row";
 import { MarkRecipeUpdateDialog } from "./mark-recipe-update-dialog";
+import { ReplaceItemDialog } from "./replace-item-dialog";
 import { ShoppingDoneState } from "./shopping-done";
 import { AddItemDialog } from "./add-item-dialog";
 import { AddMealsDialog } from "./add-meals-dialog";
@@ -129,6 +130,8 @@ export function ShoppingListView({
   const [markUpdateItem, setMarkUpdateItem] = React.useState<ShoppingItemView | null>(
     null,
   );
+  // The item being replaced ("Ersetzen": pick another article, per recipe).
+  const [replaceItem, setReplaceItem] = React.useState<ShoppingItemView | null>(null);
   const [clearOpen, setClearOpen] = React.useState(false);
   const [stockCheckOpen, setStockCheckOpen] = React.useState(false);
   // Identify by id so the dialog body re-keys to fresh state when a
@@ -637,6 +640,7 @@ export function ShoppingListView({
         onToggleUnavailable={onToggleUnavailable}
         onSkipToday={(i, storeId) => onSetSkipped(i, storeId, true)}
         onRequestMarkRecipeUpdate={setMarkUpdateItem}
+        onRequestReplace={setReplaceItem}
         disabledOffline={disabledOffline}
         trailingAction={trailingAction}
       />
@@ -964,6 +968,15 @@ export function ShoppingListView({
           void apiMarkRecipesNeedUpdate(marks, note)
             .then(() => refetchRemote("event"))
         }
+      />
+      <ReplaceItemDialog
+        item={replaceItem}
+        onClose={() => setReplaceItem(null)}
+        // Two entries change (old one shrinks or goes, new one grows) — refetch.
+        onReplaced={() => {
+          clearGhosts();
+          void refetchRemote("reconcile");
+        }}
       />
       <ClearListDialog
         open={clearOpen}
